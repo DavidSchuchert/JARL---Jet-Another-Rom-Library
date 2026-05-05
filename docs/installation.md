@@ -24,6 +24,9 @@ Edit `docker/.env`:
 | Variable | Required | Description |
 |---|---|---|
 | `ROM_PATH` | **Yes** | Absolute path to your ROMs directory on the host |
+| `AUTH__USERNAME` | **Yes** | API login username — **change from default** |
+| `AUTH__PASSWORD` | **Yes** | API login password — **change from default** |
+| `SECRET_KEY` | **Yes** | JWT signing secret — use a long random string in production |
 | `SCRAPER__IGDB_CLIENT_ID` | No | IGDB OAuth client ID |
 | `SCRAPER__IGDB_CLIENT_SECRET` | No | IGDB OAuth client secret |
 | `SCRAPER__USERNAME` | No | ScreenScraper account (required for private game data) |
@@ -41,16 +44,33 @@ JARL will be available at:
 - **API**: http://localhost/api/docs (Swagger UI)
 - **ReDoc**: http://localhost/api/redoc
 
-### 4. Run your first scan
+### 4. Login
+
+All API endpoints require authentication. Get a token:
 
 ```bash
-curl -X POST http://localhost:8000/api/scan/start
+curl -X POST http://localhost:8000/api/auth/login \
+  -d "username=admin" \
+  -d "password=your_password"
+```
+
+Response:
+```json
+{"access_token": "eyJ...", "token_type": "bearer"}
+```
+
+### 5. Run your first scan
+
+```bash
+curl -X POST http://localhost:8000/api/scan/start \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 Poll scan events for progress:
 
 ```bash
-curl "http://localhost:8000/api/scan/events/1?after=0"
+curl "http://localhost:8000/api/scan/events/1?after=0" \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ---

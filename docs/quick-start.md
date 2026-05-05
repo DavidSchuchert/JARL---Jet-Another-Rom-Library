@@ -16,29 +16,36 @@ git clone https://github.com/your-org/jarl.git
 cd jarl
 
 cp docker/.env.example docker/.env
-# Set ROM_PATH to your ROMs directory in docker/.env
+# Set ROM_PATH, AUTH__USERNAME, AUTH__PASSWORD in docker/.env
 
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-## 3. Open the UI
+## 3. Login
 
-```
-http://localhost
+All API endpoints require authentication:
+
+```bash
+# Get a JWT token
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
+  -d "username=admin" \
+  -d "password=admin" | jq -r '.access_token')
+
+echo $TOKEN
 ```
 
 ## 4. Scan
 
-Click **"Scan Library"** in the UI, or:
-
 ```bash
-curl -X POST http://localhost:8000/api/scan/start
+curl -X POST http://localhost:8000/api/scan/start \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 Poll for live progress:
 
 ```bash
-curl "http://localhost:8000/api/scan/events/1?after=0"
+curl "http://localhost:8000/api/scan/events/1?after=0" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## 5. Scrape Metadata
@@ -47,18 +54,23 @@ Once scanned, enrich your ROMs with metadata:
 
 ```bash
 # Scrape all ROMs missing metadata
-curl -X POST "http://localhost:8000/api/scrape/start?only_missing=true"
+curl -X POST "http://localhost:8000/api/scrape/start?only_missing=true" \
+  -H "Authorization: Bearer $TOKEN"
 
 # Check progress
-curl http://localhost:8000/api/scrape/status
+curl http://localhost:8000/api/scrape/status \
+  -H "Authorization: Bearer $TOKEN"
 
 # Cancel if needed
-curl -X POST http://localhost:8000/api/scrape/stop
+curl -X POST http://localhost:8000/api/scrape/stop \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
-Or click **"Scrape All"** in the UI.
+## 6. Open the UI
 
-## 6. Browse
+Navigate to **http://localhost** and log in with the same credentials. The frontend handles token storage automatically.
+
+## 7. Browse
 
 Navigate platforms in the sidebar. Search by title with the search bar.
 
@@ -66,7 +78,7 @@ Navigate platforms in the sidebar. Search by title with the search bar.
 
 ## Next Steps
 
+- [Change default credentials](authentication.md#credential-setup) — default `admin`/`admin` is insecure
 - [Add ScreenScraper credentials](scraping.md#screenscraper) — required for private/unverified games
 - [Add IGDB credentials](scraping.md#igdb) — improves coverage for Western commercial titles
-- [Configure hash size limit](configuration.md#scanner) — set to `0` to always compute SHA1 for deduplication
 - [Browse all platforms](platforms.md)

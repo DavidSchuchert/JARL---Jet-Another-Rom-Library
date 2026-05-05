@@ -8,11 +8,70 @@ Base URL: `http://localhost:8000/api`
 
 ## Authentication
 
-Currently **no authentication** — JARL is designed for local/private network use. Add a reverse-proxy auth layer (nginx Basic Auth, Cloudflare Access) if exposed publicly.
+All endpoints **except** the following require a valid JWT Bearer token:
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/auth/login` | POST | Get JWT token |
+| `/api/auth/me` | GET | Validate current token |
+| `/api/health` | GET | Health check |
+| `/` | GET | API root info |
+
+**Login:**
+
+```bash
+curl -X POST http://localhost:8000/api/auth/login \
+  -d "username=admin" \
+  -d "password=admin"
+```
+
+```json
+{"access_token": "eyJ...", "token_type": "bearer"}
+```
+
+Use the token in the `Authorization` header:
+
+```bash
+-H "Authorization: Bearer eyJ..."
+```
 
 ---
 
 ## Endpoints
+
+### Auth
+
+#### `POST /api/auth/login`
+
+```
+POST /api/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=admin
+```
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+#### `GET /api/auth/me`
+
+```
+GET /api/auth/me
+Authorization: Bearer eyJ...
+```
+
+```json
+{
+  "status": "authenticated",
+  "username": "admin"
+}
+```
+
+---
 
 ### Health
 
@@ -36,14 +95,14 @@ Currently **no authentication** — JARL is designed for local/private network u
 List ROMs with pagination and filtering.
 
 | Parameter     | Type    | Default | Description |
-| ------------- | ------- | ------- | ----------- |
-| `page`        | int     | `1`     | Page number |
-| `page_size`   | int     | `50`    | Items per page (max 100) |
-| `platform`    | string  | —       | Filter by platform slug |
-| `region`      | string  | —       | Filter by region |
-| `year`        | int     | —       | Filter by release year |
-| `genre`       | string  | —       | Filter by genre |
-| `search`      | string  | —       | Full-text search on title |
+| ------------ | ------- | ------- | ----------- |
+| `page`       | int     | `1`     | Page number |
+| `page_size`  | int     | `50`    | Items per page (max 100) |
+| `platform`   | string  | —       | Filter by platform slug |
+| `region`     | string  | —       | Filter by region |
+| `year`       | int     | —       | Filter by release year |
+| `genre`      | string  | —       | Filter by genre |
+| `search`     | string  | —       | Full-text search on title |
 | `missing_only` | bool   | `false` | Only ROMs with `scrape_status != "done"` |
 
 ```json
@@ -122,9 +181,8 @@ Get a single platform by slug.
 Get ROMs for a specific platform (paginated).
 
 | Parameter   | Type | Default | Description |
-| ----------- | ---- | ------- | ----------- |
-| `slug`      | path | —       | Platform slug |
-| `page`      | int  | `1`     | Page number |
+| ---------- | ---- | ------- | ----------- |
+| `page`     | int  | `1`     | Page number |
 | `page_size` | int  | `50`    | Items per page |
 
 ---
@@ -135,8 +193,8 @@ Get ROMs for a specific platform (paginated).
 
 Trigger a new filesystem scan.
 
-| Query Param  | Type | Default | Description |
-| ------------ | ---- | ------- | ----------- |
+| Query Param  | Type  | Default | Description |
+| ----------- | ----- | ------- | ----------- |
 | `full_scan` | bool | `false` | Re-hash all files even if unchanged |
 
 ```json
@@ -196,15 +254,6 @@ Get detailed status of a specific scan job.
 
 Get progress of the currently running scan job (if any).
 
-```json
-{
-  "current_job": { ... },
-  "total_jobs": 5,
-  "running_jobs": 0,
-  "completed_jobs": 4
-}
-```
-
 ---
 
 ### Scrape
@@ -213,10 +262,10 @@ Get progress of the currently running scan job (if any).
 
 Start a batch scrape job.
 
-| Query Param    | Type    | Default | Description |
-| -------------- | ------- | ------- | ----------- |
-| `platform`     | string  | —       | Filter to a specific platform |
-| `only_missing` | bool    | `true`  | Only scrape ROMs with `scrape_status != "done"` |
+| Query Param    | Type   | Default | Description |
+| ------------- | ------ | ------- | ----------- |
+| `platform`     | string | —       | Filter to a specific platform |
+| `only_missing` | bool   | `true`  | Only scrape ROMs with `scrape_status != "done"` |
 
 ```json
 {
@@ -229,14 +278,6 @@ Start a batch scrape job.
 #### `POST /api/scrape/rom/{rom_id}`
 
 Force re-scrape of a single ROM.
-
-```json
-{
-  "status": "started",
-  "message": "Started scraping ROM 42",
-  "total": 1
-}
-```
 
 #### `GET /api/scrape/status`
 
@@ -260,26 +301,6 @@ Get current batch scrape progress.
 
 Cancel the running batch scrape job.
 
-```json
-{
-  "message": "Scraping cancellation requested"
-}
-```
-
 #### `GET /api/scrape/test-auth`
 
 Test ScreenScraper and IGDB credentials.
-
-```json
-{
-  "screenscraper": {
-    "status": "success",
-    "user": "my_username",
-    "details": { ... }
-  },
-  "igdb": {
-    "status": "success",
-    "message": "Authenticated successfully"
-  }
-}
-```

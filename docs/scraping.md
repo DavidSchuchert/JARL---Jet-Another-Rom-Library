@@ -8,7 +8,7 @@ JARL enriches ROM metadata using two sources: **ScreenScraper.fr** (primary) and
 
 The batch scraper processes each ROM in this order:
 
-1. **ScreenScraper — Hash lookup**: If the ROM has a SHA1 hash, look up by hash via `jeuInfos.php`
+1. **ScreenScraper — Hash lookup**: Look up by xxHash via `jeuInfos.php` (ss_bhash param). ROMs always have xxhash computed.
 2. **ScreenScraper — Name search**: If no hash match, search by cleaned title via `jeuRecherche.php`
 3. **IGDB — Name search**: If ScreenScraper returns nothing, fall back to IGDB name search
 

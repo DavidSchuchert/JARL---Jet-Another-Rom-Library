@@ -1,6 +1,10 @@
+<p align="center">
+  <img src="frontend/src/assets/JARL_Logo.svg" alt="JARL Logo" width="200">
+</p>
+
 # JARL - JetAnotherRomLibrary
 
-**Self-hosted ROM metadata manager with automatic scraping from ScreenScraper and IGDB.**
+**Self-hosted ROM metadata manager with automatic scraping from ScreenScraper and IGDB. JWT-protected API.**
 
 JARL scans your ROM directories, identifies games by filename, computes xxHash for deduplication, and enriches them with metadata (cover art, description, genre, year, publisher, region) using ScreenScraper.fr (primary) and IGDB (fallback).
 
@@ -13,8 +17,9 @@ JARL scans your ROM directories, identifies games by filename, computes xxHash f
 - **IGDB Fallback** — Name-based search via Twitch OAuth (IGDB has no ROM hash lookup)
 - **Deduplication** — xxHash (all files) + SHA1 (files ≤ hash limit) for duplicate detection
 - **Smart Skipping** — Skips files unchanged since last scan (path + size + mtime check)
-- **Progress Tracking** — Live scan events via polling (`/api/scan/events/{job_id}`)
+- **Progress Tracking** — Live scan events via polling (`GET /api/scan/events/{job_id}`)
 - **Batch Scraping** — Background metadata enrichment with retry, concurrency, and cancellation
+- **JWT Authentication** — All API endpoints (except `/auth/*` and `/health`) require a valid Bearer token
 - **REST API** — FastAPI with Swagger/ReDoc at `/api/docs`
 - **Vue.js Frontend** — Dark-themed UI with platform browser, ROM grid, and search
 - **Docker-Ready** — Single `docker compose up`
@@ -41,6 +46,7 @@ http://localhost ──────────► ─────────�
 | Runtime   | Python 3.11+, Node 20+                       |
 | Infra     | Docker Compose, nginx:alpine                  |
 | Metadata  | ScreenScraper.fr REST API v2, IGDB API v4   |
+| Auth      | JWT (HS256) — all protected endpoints        |
 
 ---
 
@@ -53,7 +59,7 @@ git clone https://github.com/your-org/jarl.git
 cd jarl
 
 cp docker/.env.example docker/.env
-# Edit docker/.env — set ROM_PATH to your ROMs directory
+# Edit docker/.env — set ROM_PATH, AUTH__USERNAME, AUTH__PASSWORD
 ```
 
 ### 2. Start
@@ -66,28 +72,68 @@ docker compose -f docker/docker-compose.yml up -d
 - **API**: http://localhost/api/docs (Swagger UI)
 - **ReDoc**: http://localhost/api/redoc
 
-### 3. Scan
+### 3. Login
+
+JARL requires authentication for all API endpoints (except `/auth/login`, `/auth/me`, `/health`).
 
 ```bash
-curl -X POST http://localhost:8000/api/scan/start
+curl -X POST http://localhost:8000/api/auth/login \
+  -d "username=admin" \
+  -d "password=your_password"
+```
+
+Response:
+```json
+{"access_token": "eyJ...", "token_type": "bearer"}
+```
+
+Use the token in subsequent requests:
+
+```bash
+curl -X POST http://localhost:8000/api/scan/start \
+  -H "Authorization: Bearer eyJ..."
+```
+
+### 4. Scan
+
+```bash
+curl -X POST http://localhost:8000/api/scan/start \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 Poll for events:
 
 ```bash
-# Get events for job 1, after sequence 0
-curl "http://localhost:8000/api/scan/events/1?after=0"
+curl "http://localhost:8000/api/scan/events/1?after=0" \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### 4. Scrape Metadata
+### 5. Scrape Metadata
 
 ```bash
 # Batch scrape all ROMs with missing metadata
-curl -X POST "http://localhost:8000/api/scrape/start?only_missing=true"
+curl -X POST "http://localhost:8000/api/scrape/start?only_missing=true" \
+  -H "Authorization: Bearer YOUR_TOKEN"
 
 # Check progress
-curl http://localhost:8000/api/scrape/status
+curl http://localhost:8000/api/scrape/status \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
+
+---
+
+## Authentication
+
+JARL uses **JWT (HS256)** for API authentication. All endpoints except the following are protected:
+
+| Endpoint | Method | Protected |
+|---|---|---|
+| `/api/auth/login` | POST | No — returns JWT |
+| `/api/auth/me` | GET | No — validates token |
+| `/api/health` | GET | No |
+| `/` | GET | No |
+
+Default credentials: `admin` / `admin`. **Change these in production!**
 
 ---
 
@@ -107,7 +153,7 @@ JARL detects platforms from path segments — not folder names. The scanner spli
     └── Sonic The Hedgehog (USA, Europe).md
 ```
 
-The scanner walks all subdirectories. No specific folder structure required — only the **file extension** and **path segments** matter for platform detection.
+The scanner walks all subdirectories. Only the **file extension** and **path segments** matter for platform detection.
 
 ---
 
@@ -125,6 +171,10 @@ The scanner walks all subdirectories. No specific folder structure required — 
 | `SCRAPER__IGDB_CLIENT_ID`      | —                  | IGDB OAuth client ID (from dev.twitch.tv) |
 | `SCRAPER__IGDB_CLIENT_SECRET`  | —                  | IGDB OAuth client secret              |
 | `SCRAPER__RATE_LIMIT`         | `2.0`              | ScreenScraper: min seconds between requests |
+| `AUTH__USERNAME`              | `admin`            | API login username                   |
+| `AUTH__PASSWORD`              | `admin`            | API login password                   |
+| `AUTH__TOKEN_EXPIRE_MINUTES`  | `1440`             | JWT token expiration (minutes)       |
+| `SECRET_KEY`                  | `change-this-in-production` | JWT signing secret — **must change in production** |
 | `CORS_ORIGINS`                 | `localhost:5173,localhost:80` | Allowed CORS origins   |
 
 ---
@@ -132,6 +182,15 @@ The scanner walks all subdirectories. No specific folder structure required — 
 ## API Reference
 
 Base URL: `http://localhost:8000/api`
+
+> **All endpoints except `/auth/*`, `/health`, and `/` require a `Bearer` token.**
+
+### Auth
+
+```
+POST /api/auth/login    # Get JWT token
+GET  /api/auth/me      # Validate token
+```
 
 ### Health
 
@@ -159,21 +218,21 @@ GET  /api/platforms/{slug}/roms?page=1&page_size=50
 ### Scan
 
 ```
-POST /api/scan/start                    # Start scan (full_scan=false)
-POST /api/scan/start?full_scan=true   # Full rescan (re-hash all)
-GET  /api/scan/events/{job_id}?after=0 # Poll scan events (polling)
-GET  /api/scan/status/{job_id}         # Get job details
-GET  /api/scan/progress                # Current scan stats
+POST /api/scan/start
+POST /api/scan/start?full_scan=true
+GET  /api/scan/events/{job_id}?after=0
+GET  /api/scan/status/{job_id}
+GET  /api/scan/progress
 ```
 
 ### Scrape
 
 ```
-POST /api/scrape/start?only_missing=true   # Batch scrape
-POST /api/scrape/rom/{rom_id}             # Single ROM rescrape
-GET  /api/scrape/status                    # Batch progress
-POST /api/scrape/stop                     # Cancel running batch
-GET  /api/scrape/test-auth                # Test credentials
+POST /api/scrape/start?only_missing=true
+POST /api/scrape/rom/{rom_id}
+GET  /api/scrape/status
+POST /api/scrape/stop
+GET  /api/scrape/test-auth
 ```
 
 Full docs at `/api/docs` (Swagger UI).
@@ -209,33 +268,35 @@ jarl/
 ├── backend/
 │   ├── app/
 │   │   ├── api/           # FastAPI routes
+│   │   │   ├── auth.py       # Login / me
 │   │   │   ├── health.py
 │   │   │   ├── roms.py
 │   │   │   ├── platforms.py
 │   │   │   ├── scan.py
 │   │   │   └── scrape.py
-│   │   ├── models.py      # SQLAlchemy models
-│   │   ├── schemas.py     # Pydantic schemas
-│   │   ├── config.py      # pydantic-settings
-│   │   ├── database.py    # Async SQLite
+│   │   ├── auth.py          # JWT utilities (verify, create_token)
+│   │   ├── models.py        # SQLAlchemy models
+│   │   ├── schemas.py       # Pydantic schemas
+│   │   ├── config.py        # pydantic-settings
+│   │   ├── database.py       # Async SQLite
 │   │   ├── scanner/
-│   │   │   ├── filesystem.py   # ROM directory scanner
-│   │   │   ├── parser.py       # Filename → title/region/year
-│   │   │   ├── dedup.py        # xxHash/SHA1 deduplication
-│   │   │   ├── platforms.py    # Platform registry (80+ platforms)
-│   │   │   └── progress.py     # Scan event buffering
+│   │   │   ├── filesystem.py
+│   │   │   ├── parser.py
+│   │   │   ├── dedup.py
+│   │   │   ├── platforms.py
+│   │   │   └── progress.py
 │   │   └── scraper/
-│   │       ├── base.py         # Abstract scraper class
-│   │       ├── screenscraper.py # ScreenScraper API v2
-│   │       ├── igdb.py         # IGDB API v4 (Twitch OAuth)
-│   │       └── batch.py        # Batch scraping engine
+│   │       ├── base.py
+│   │       ├── screenscraper.py
+│   │       ├── igdb.py
+│   │       └── batch.py
 │   └── tests/
 ├── frontend/
 │   └── src/
-│       ├── views/         # HomeView, ScanView, PlatformsView, RomDetailView, ScraperTestView
-│       ├── components/    # RomCard, RomGrid, ScanProgress, FilterBar, SearchBar, PlatformBadge
-│       ├── stores/        # Pinia stores
-│       └── api/           # API client
+│       ├── views/
+│       ├── components/
+│       ├── stores/        # Pinia (includes auth.ts)
+│       └── api/
 ├── docker/
 │   ├── docker-compose.yml
 │   ├── Dockerfile.backend
@@ -251,23 +312,23 @@ jarl/
 
 JARL supports 80+ platforms. Key slugs:
 
-| Slug              | Name                        | Family    |
-| ----------------- | --------------------------- | --------- |
-| `nes`             | Nintendo Entertainment System | Nintendo |
-| `snes`            | Super Nintendo              | Nintendo |
-| `n64`             | Nintendo 64                | Nintendo |
-| `gamecube`        | Nintendo GameCube          | Nintendo |
-| `wii`             | Nintendo Wii               | Nintendo |
-| `switch`          | Nintendo Switch            | Nintendo |
-| `psx`             | PlayStation                | Sony      |
-| `ps2`             | PlayStation 2              | Sony      |
-| `ps3`             | PlayStation 3              | Sony      |
-| `psp`             | PlayStation Portable       | Sony      |
-| `megadrive`       | Mega Drive / Genesis       | Sega      |
-| `saturn`          | Sega Saturn               | Sega      |
-| `dreamcast`       | Sega Dreamcast            | Sega      |
-| `atari2600`       | Atari 2600                | Atari     |
-| `gameboy`         | Game Boy                  | Nintendo  |
+| Slug                | Name                          | Family    |
+| ------------------- | ---------------------------- | --------- |
+| `nes`              | Nintendo Entertainment System | Nintendo |
+| `snes`             | Super Nintendo               | Nintendo |
+| `n64`             | Nintendo 64                  | Nintendo |
+| `gamecube`         | Nintendo GameCube            | Nintendo |
+| `wii`             | Nintendo Wii                | Nintendo |
+| `switch`           | Nintendo Switch              | Nintendo |
+| `psx`             | PlayStation                 | Sony      |
+| `ps2`             | PlayStation 2               | Sony      |
+| `ps3`             | PlayStation 3               | Sony      |
+| `psp`             | PlayStation Portable         | Sony      |
+| `megadrive`        | Mega Drive / Genesis        | Sega      |
+| `saturn`           | Sega Saturn                | Sega      |
+| `dreamcast`        | Sega Dreamcast             | Sega      |
+| `atari2600`        | Atari 2600                | Atari     |
+| `gameboy`          | Game Boy                  | Nintendo  |
 | `gameboyadvance`   | Game Boy Advance          | Nintendo  |
 | `nds`             | Nintendo DS               | Nintendo  |
 | `3ds`             | Nintendo 3DS              | Nintendo  |

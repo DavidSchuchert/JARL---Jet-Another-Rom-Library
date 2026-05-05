@@ -31,6 +31,15 @@ JARL uses `pydantic-settings` with double-underscore (`__`) as the nested delimi
 | `SCRAPER__IGDB_CLIENT_ID` | — | IGDB OAuth client ID (from dev.twitch.tv) |
 | `SCRAPER__IGDB_CLIENT_SECRET` | — | IGDB OAuth client secret |
 
+## Auth
+
+| Variable | Default | Description |
+|---|---|---|
+| `AUTH__USERNAME` | `admin` | API login username |
+| `AUTH__PASSWORD` | `admin` | API login password |
+| `AUTH__TOKEN_EXPIRE_MINUTES` | `1440` | JWT token expiration (minutes) |
+| `SECRET_KEY` | `change-this-in-production` | JWT signing secret — **must be changed in production** |
+
 ## CORS
 
 | Variable | Default | Description |
@@ -64,6 +73,12 @@ SCRAPER__PASSWORD=your_password
 
 # Rate limit (seconds between requests)
 SCRAPER__RATE_LIMIT=2.0
+
+# Auth — CHANGE THESE IN PRODUCTION
+AUTH__USERNAME=admin
+AUTH__PASSWORD=your_secure_password
+AUTH__TOKEN_EXPIRE_MINUTES=1440
+SECRET_KEY=your-very-long-random-secret-key-here
 
 # CORS
 CORS_ORIGINS=http://localhost:5173,http://localhost:80

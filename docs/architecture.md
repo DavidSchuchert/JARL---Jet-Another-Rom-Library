@@ -21,6 +21,19 @@ http://localhost ──────► nginx:80
 
 ---
 
+## Authentication
+
+All API routes (except `/auth/*`, `/health`, `/`) are protected via JWT Bearer token dependency injection using FastAPI's `Depends(get_current_user)`.
+
+```
+Unprotected:  POST /auth/login, GET /auth/me, GET /health, GET /
+Protected:   all /roms/*, /platforms/*, /scan/*, /scrape/*
+```
+
+JWT is signed with HS256 using `settings.secret_key`. Tokens expire after `AUTH__TOKEN_EXPIRE_MINUTES` (default 24h).
+
+---
+
 ## Backend
 
 Located in `backend/app/`.
@@ -29,11 +42,16 @@ Located in `backend/app/`.
 
 | Module | Responsibility |
 |---|---|
+| `auth.py` | Login (`/auth/login`), token validation (`/auth/me`) |
 | `health.py` | Health check, version, uptime |
 | `roms.py` | ROM CRUD, pagination, filtering, stats |
 | `platforms.py` | Platform registry, per-platform ROM listing |
 | `scan.py` | Scan job management, event polling |
 | `scrape.py` | Batch scraping, auth testing |
+
+### Auth (`app/auth.py`)
+
+JWT utilities: `create_access_token()`, `verify_password()`, `get_password_hash()`, `get_current_user` (FastAPI dependency).
 
 ### Data Layer
 
@@ -78,19 +96,16 @@ src/
 │   ├── RomDetailView.vue  # Single ROM detail
 │   └── ScraperTestView.vue # Scraper auth testing
 ├── components/
-│   ├── RomCard.vue        # Single ROM card
-│   ├── RomGrid.vue        # Paginated ROM grid
-│   ├── ScanProgress.vue   # Scan progress display
-│   ├── FilterBar.vue      # Region/year/genre filters
-│   ├── SearchBar.vue      # Title search
-│   └── PlatformBadge.vue  # Platform badge
-├── stores/               # Pinia state stores
-├── api/                  # Backend API client
-└── router/              # Vue Router routes
+│   ├── RomCard.vue, RomGrid.vue, ScanProgress.vue
+│   ├── FilterBar.vue, SearchBar.vue, PlatformBadge.vue
+├── stores/
+│   ├── auth.ts           # JWT login/logout, token in localStorage
+│   └── ...
+└── api/
 ```
 
 Routes:
-- `/` — HomeView (ROM grid)
+- `/` — HomeView
 - `/roms/:id` — RomDetailView
 - `/platforms` — PlatformsView
 - `/scan` — ScanView
@@ -148,25 +163,25 @@ POST /api/scan/start
               ▼
 ┌──────────────────────────────────┐
 │ walk_directory()                  │
-│   AsyncDirectoryWalker queue      │
+│   AsyncDirectoryWalker queue       │
 │   Yields batches of BATCH_SIZE=100│
 │                                    │
-│ For each file:                     │
+│ For each file:                    │
 │   a) Skip if path+size+mtime      │
 │      matches existing DB entry     │
 │   b) Compute xxhash (always)      │
-│   c) Compute sha1 if size <= limit │
+│   c) Compute sha1 if size <= limit│
 │   d) Check dedup via xxhash       │
 │   e) Detect platform from path    │
 │   f) Parse filename               │
 │   g) Record scan event            │
-│   h) Save batch to DB every 100    │
+│   h) Save batch to DB every 100   │
 └──────────────┬───────────────────┘
               │
               ▼
 ┌──────────────────────────────────┐
-│ Mark job completed                │
-│ Record "success" scan event       │
+│ Mark job completed                 │
+│ Record "success" scan event        │
 └──────────────────────────────────┘
 ```
 
@@ -179,11 +194,6 @@ Two files are considered duplicates if they share the same `hash_xxhash`.
 - **xxhash**: computed for **all** files (fast, streaming)
 - **SHA1**: computed only for files ≤ `SCANNER__HASH_SIZE_LIMIT_MB` (default 512 MiB). Set to `0` to always compute SHA1.
 
-When a duplicate is detected:
-- If the existing entry has more metadata, skip the new file
-- If the new file has more metadata, update the existing entry
-- Otherwise keep the first-seen entry
-
 ---
 
 ## Smart Skipping
@@ -193,12 +203,8 @@ If `full_scan=false` (default), the scanner skips any file where **all three** m
 - `size` equals stored size
 - `mtime` equals stored mtime
 
-This means unchanged ROMs are skipped without re-hashing.
-
 ---
 
 ## Scan Events (Polling)
 
-Scan progress uses **polling** via `GET /api/scan/events/{job_id}?after=N`. The client polls this endpoint, passing the last seen `sequence` number to get only new events.
-
-Events are stored in an in-memory circular buffer in `progress.py` (per job, sequence-numbered).
+Scan progress uses **polling** via `GET /api/scan/events/{job_id}?after=N`. Events are stored in an in-memory circular buffer in `progress.py` (per job, sequence-numbered).

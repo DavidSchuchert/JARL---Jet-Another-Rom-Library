@@ -75,8 +75,6 @@ Platform detection also considers parent directory names as fallback — if `nes
 | `ataritt`          | Atari TT                   | Atari      |
 | `xbox`             | Xbox                        | Microsoft  |
 | `xbox360`          | Xbox 360                    | Microsoft  |
-| `ps4`              | PlayStation 4               | Sony       |
-| `ps5`              | PlayStation 5               | Sony       |
 | `pc`               | PC (x86)                   | PC         |
 | `dos`              | DOS                        | PC         |
 | `windows`          | Windows                    | PC         |

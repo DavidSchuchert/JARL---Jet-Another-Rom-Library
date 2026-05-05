@@ -14,7 +14,7 @@
 - [Configuration](configuration.md) — All environment variables, explained
 - [Platforms](platforms.md) — Supported platforms, slug names, path detection
 - [API Reference](api.md) — Full REST API documentation
-- [Scraping](scraping.md) — ScreenScraper vs IGDB, credential setup, batch scraping
+- [Authentication](authentication.md) — JWT setup, login, token refresh
 
 ## Development
 
