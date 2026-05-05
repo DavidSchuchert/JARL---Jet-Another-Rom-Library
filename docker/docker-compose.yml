@@ -1,0 +1,63 @@
+name: jarl
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: jarl-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE__URL=sqlite+aiosqlite:///./data/jarl.db
+      - SCANNER__ROMS_PATH=/roms
+      - SCRAPER__USERNAME=${SCRAPER__USERNAME}
+      - SCRAPER__PASSWORD=${SCRAPER__PASSWORD}
+      - SCRAPER__IGDB_CLIENT_ID=${SCRAPER__IGDB_CLIENT_ID}
+      - SCRAPER__IGDB_CLIENT_SECRET=${SCRAPER__IGDB_CLIENT_SECRET}
+    volumes:
+      - jarl-data:/app/data
+      - ${ROM_PATH:-../roms}:/roms:ro
+    networks:
+      - jarl-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    container_name: jarl-frontend
+    networks:
+      - jarl-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    container_name: jarl-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - jarl-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  jarl-data:
+    name: jarl-data
+
+networks:
+  jarl-network:
+    name: jarl-network
+    driver: bridge

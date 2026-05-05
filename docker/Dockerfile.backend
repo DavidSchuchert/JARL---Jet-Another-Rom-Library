@@ -1,0 +1,31 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy pyproject.toml and lock file from backend/ (context is project root)
+COPY backend/pyproject.toml ./
+COPY uv.lock ./
+COPY README.md ./
+
+# Sync dependencies
+RUN uv sync --frozen --no-install-project
+
+# Copy application code
+COPY backend/app ./app
+
+# Create non-root user and data directory
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app && \
+    mkdir -p /app/data && \
+    chown appuser:appuser /app/data
+
+USER appuser
+
+EXPOSE 8000
+
+ENV PYTHONPATH=/app
+
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
