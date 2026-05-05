@@ -1,11 +1,58 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { ref, watch } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+
+const isMobileMenuOpen = ref(false)
+const route = useRoute()
+
+// Close mobile menu on route change
+watch(() => route.path, () => {
+  isMobileMenuOpen.value = false
+})
+
+const toggleMobileMenu = () => {
+  isMobileMenuOpen.value = !isMobileMenuOpen.value
+}
 </script>
 
 <template>
-  <div class="flex h-screen bg-[#11110f] overflow-hidden">
-    <!-- Sidebar -->
-    <aside class="w-72 glass-panel flex flex-col z-20">
+  <div class="flex flex-col lg:flex-row h-screen bg-[#11110f] overflow-hidden">
+    
+    <!-- Mobile Header -->
+    <div class="lg:hidden flex items-center justify-between p-4 border-b border-stone-800 bg-[#11110f]/80 backdrop-blur-xl sticky top-0 z-30">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-md bg-amber-400 text-stone-950 flex items-center justify-center shadow-[inset_0_-2px_0_rgba(0,0,0,0.22)]">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12v10H6z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 10h2m-1-1v2m5-1h.01M17 12h.01" />
+          </svg>
+        </div>
+        <h1 class="text-xl font-black tracking-normal text-stone-50">JARL</h1>
+      </div>
+      <button @click="toggleMobileMenu" class="p-2 text-stone-400 hover:text-stone-50 transition-colors">
+        <svg v-if="!isMobileMenuOpen" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+        </svg>
+        <svg v-else class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Full Menu Overlay -->
+    <transition name="fade">
+      <div v-if="isMobileMenuOpen" class="fixed inset-0 z-20 bg-[#11110f]/95 lg:hidden flex flex-col pt-20">
+        <nav class="flex-1 px-8 space-y-6 flex flex-col justify-center text-center">
+          <RouterLink to="/" class="mobile-nav-link">Games</RouterLink>
+          <RouterLink to="/platforms" class="mobile-nav-link">Platforms</RouterLink>
+          <RouterLink to="/scan" class="mobile-nav-link">Jobs</RouterLink>
+          <RouterLink to="/scraper-test" class="mobile-nav-link">Checks</RouterLink>
+        </nav>
+      </div>
+    </transition>
+
+    <!-- Sidebar (Desktop) -->
+    <aside class="hidden lg:flex w-72 glass-panel flex-col z-20 border-r border-stone-800">
       <!-- Logo Section -->
       <div class="p-6 flex items-center gap-4 border-b border-stone-700/70">
         <div class="w-10 h-10 rounded-md bg-amber-400 text-stone-950 flex items-center justify-center shadow-[inset_0_-3px_0_rgba(0,0,0,0.22)]">
@@ -66,7 +113,7 @@ import { RouterLink, RouterView } from 'vue-router'
     <!-- Main Content -->
     <main class="flex-1 relative overflow-y-auto overflow-x-hidden custom-scrollbar">
       <div class="absolute inset-0 pointer-events-none opacity-[0.035] bg-[linear-gradient(0deg,transparent_24px,#fff_25px),linear-gradient(90deg,transparent_24px,#fff_25px)] bg-[length:25px_25px]"></div>
-      <div class="relative z-10 p-6 lg:p-8 max-w-7xl mx-auto">
+      <div class="relative z-10 p-4 lg:p-8 max-w-7xl mx-auto mb-16 lg:mb-0">
         <RouterView v-slot="{ Component }">
           <transition 
             name="fade-slide" 
@@ -77,6 +124,25 @@ import { RouterLink, RouterView } from 'vue-router'
         </RouterView>
       </div>
     </main>
+
+    <!-- Mobile Tab Bar -->
+    <div class="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#11110f]/90 backdrop-blur-2xl border-t border-stone-800/50 flex items-center justify-around px-4 z-30">
+      <RouterLink to="/" class="mobile-tab" active-class="active">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+        </svg>
+      </RouterLink>
+      <RouterLink to="/platforms" class="mobile-tab" active-class="active">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      </RouterLink>
+      <RouterLink to="/scan" class="mobile-tab" active-class="active">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+        </svg>
+      </RouterLink>
+    </div>
   </div>
 </template>
 
@@ -94,6 +160,32 @@ import { RouterLink, RouterView } from 'vue-router'
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateX(-20px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.mobile-nav-link {
+  @apply text-4xl font-black text-stone-500 hover:text-amber-400 transition-all italic tracking-tighter;
+}
+
+.mobile-nav-link.router-link-active {
+  @apply text-stone-50 scale-110;
+}
+
+.mobile-tab {
+  @apply p-3 text-stone-500 transition-all rounded-xl;
+}
+
+.mobile-tab.active {
+  @apply text-amber-400 bg-amber-400/10;
 }
 
 .custom-scrollbar::-webkit-scrollbar {

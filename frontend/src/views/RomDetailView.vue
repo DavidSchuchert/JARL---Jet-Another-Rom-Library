@@ -122,7 +122,7 @@ onUnmounted(() => {
     <!-- Back Button -->
     <button 
       @click="router.back()" 
-      class="fixed top-8 left-80 z-30 p-3 rounded-xl glass-card text-slate-400 hover:text-white hover:bg-white/5 transition-all group"
+      class="sticky lg:fixed top-4 lg:top-8 left-0 lg:left-80 z-30 p-3 rounded-xl glass-card text-slate-400 hover:text-white hover:bg-white/5 transition-all group mb-4 lg:mb-0"
     >
       <svg class="w-6 h-6 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -202,7 +202,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Right Column: Content -->
-      <div class="space-y-10 py-4">
+      <div class="space-y-8 lg:space-y-10 py-4">
         <div class="space-y-4">
           <div class="flex items-center gap-3">
             <PlatformBadge :platformSlug="rom.platform_slug" size="md" />
@@ -210,8 +210,8 @@ onUnmounted(() => {
               {{ rom.region }}
             </span>
           </div>
-          <h1 class="text-6xl font-black text-white tracking-tighter">{{ rom.title }}</h1>
-          <div class="flex flex-wrap items-center gap-6">
+          <h1 class="text-4xl lg:text-6xl font-black text-white tracking-tighter">{{ rom.title }}</h1>
+          <div class="flex flex-wrap items-center gap-4 lg:gap-6">
             <div class="flex items-center gap-2 text-slate-400 font-medium">
               <svg class="w-5 h-5 text-nebula-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
