@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/src/assets/JARL_Logo.svg" alt="JARL Logo" width="200">
+  <img src="frontend/src/assets/Logo_white.svg" alt="JARL Logo" width="200">
 </p>
 
 # JARL - JetAnotherRomLibrary
