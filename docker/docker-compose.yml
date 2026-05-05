@@ -11,6 +11,8 @@ services:
     environment:
       - DATABASE__URL=sqlite+aiosqlite:///./data/jarl.db
       - SCANNER__ROMS_PATH=/roms
+      - AUTH__USERNAME=${AUTH__USERNAME:-admin}
+      - AUTH__PASSWORD=${AUTH__PASSWORD:-admin}
       - SCRAPER__USERNAME=${SCRAPER__USERNAME}
       - SCRAPER__PASSWORD=${SCRAPER__PASSWORD}
       - SCRAPER__IGDB_CLIENT_ID=${SCRAPER__IGDB_CLIENT_ID}
