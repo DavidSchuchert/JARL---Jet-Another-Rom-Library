@@ -65,11 +65,8 @@ onMounted(() => {
     <aside v-if="auth.isAuthenticated" class="hidden lg:flex w-72 glass-panel flex-col z-20 border-r border-stone-800">
       <!-- Logo Section -->
       <div class="p-6 flex items-center gap-4 border-b border-stone-700/70">
-        <div class="w-10 h-10 rounded-md bg-amber-400 text-stone-950 flex items-center justify-center shadow-[inset_0_-3px_0_rgba(0,0,0,0.22)]">
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12v10H6z" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 10h2m-1-1v2m5-1h.01M17 12h.01" />
-          </svg>
+        <div class="w-10 h-10 flex items-center justify-center">
+          <img src="@/assets/Logo_white.svg" alt="JARL Logo" class="w-10 h-10 object-contain" />
         </div>
         <div>
           <h1 class="text-2xl font-black tracking-normal text-stone-50">JARL</h1>

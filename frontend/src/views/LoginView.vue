@@ -25,11 +25,8 @@ const handleLogin = async () => {
   <div class="min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md space-y-8">
       <div class="text-center">
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-amber-400 text-stone-950 mb-6 shadow-2xl">
-          <svg class="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12v10H6z" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 10h2m-1-1v2m5-1h.01M17 12h.01" />
-          </svg>
+        <div class="inline-flex items-center justify-center w-24 h-24 mb-6">
+          <img src="@/assets/JARL_Logo.svg" alt="JARL Logo" class="w-full h-full object-contain" />
         </div>
         <h1 class="text-4xl font-black text-white tracking-tighter italic">JARL</h1>
         <p class="mt-2 text-stone-500 font-bold uppercase tracking-widest text-xs">Secure Access Protocol</p>
