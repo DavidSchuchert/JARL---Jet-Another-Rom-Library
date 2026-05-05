@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const isMobileMenuOpen = ref(false)
 const route = useRoute()
+const auth = useAuthStore()
 
 // Close mobile menu on route change
 watch(() => route.path, () => {
@@ -13,13 +15,21 @@ watch(() => route.path, () => {
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
 }
+
+const handleLogout = () => {
+  auth.logout()
+}
+
+onMounted(() => {
+  auth.checkAuth()
+})
 </script>
 
 <template>
   <div class="flex flex-col lg:flex-row h-screen bg-[#11110f] overflow-hidden">
     
     <!-- Mobile Header -->
-    <div class="lg:hidden flex items-center justify-between p-4 border-b border-stone-800 bg-[#11110f]/80 backdrop-blur-xl sticky top-0 z-30">
+    <div v-if="auth.isAuthenticated" class="lg:hidden flex items-center justify-between p-4 border-b border-stone-800 bg-[#11110f]/80 backdrop-blur-xl sticky top-0 z-30">
       <div class="flex items-center gap-3">
         <div class="w-8 h-8 rounded-md bg-amber-400 text-stone-950 flex items-center justify-center shadow-[inset_0_-2px_0_rgba(0,0,0,0.22)]">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -46,13 +56,13 @@ const toggleMobileMenu = () => {
           <RouterLink to="/" class="mobile-nav-link">Games</RouterLink>
           <RouterLink to="/platforms" class="mobile-nav-link">Platforms</RouterLink>
           <RouterLink to="/scan" class="mobile-nav-link">Jobs</RouterLink>
-          <RouterLink to="/scraper-test" class="mobile-nav-link">Checks</RouterLink>
+          <button @click="handleLogout" class="mobile-nav-link text-red-500">Logout</button>
         </nav>
       </div>
     </transition>
 
     <!-- Sidebar (Desktop) -->
-    <aside class="hidden lg:flex w-72 glass-panel flex-col z-20 border-r border-stone-800">
+    <aside v-if="auth.isAuthenticated" class="hidden lg:flex w-72 glass-panel flex-col z-20 border-r border-stone-800">
       <!-- Logo Section -->
       <div class="p-6 flex items-center gap-4 border-b border-stone-700/70">
         <div class="w-10 h-10 rounded-md bg-amber-400 text-stone-950 flex items-center justify-center shadow-[inset_0_-3px_0_rgba(0,0,0,0.22)]">
@@ -68,7 +78,7 @@ const toggleMobileMenu = () => {
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 px-4 space-y-2 mt-4">
+      <nav class="flex-1 px-4 space-y-2 mt-4 flex flex-col">
         <RouterLink to="/" class="nav-link" active-class="active">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -96,6 +106,13 @@ const toggleMobileMenu = () => {
           </svg>
           Checks
         </RouterLink>
+        
+        <button @click="handleLogout" class="nav-link w-full text-left text-red-400/70 hover:text-red-400 hover:bg-red-400/5 mt-auto mb-4">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Logout
+        </button>
       </nav>
 
       <!-- Footer Info -->
@@ -113,7 +130,7 @@ const toggleMobileMenu = () => {
     <!-- Main Content -->
     <main class="flex-1 relative overflow-y-auto overflow-x-hidden custom-scrollbar">
       <div class="absolute inset-0 pointer-events-none opacity-[0.035] bg-[linear-gradient(0deg,transparent_24px,#fff_25px),linear-gradient(90deg,transparent_24px,#fff_25px)] bg-[length:25px_25px]"></div>
-      <div class="relative z-10 p-4 lg:p-8 max-w-7xl mx-auto mb-16 lg:mb-0">
+      <div class="relative z-10 p-4 lg:p-8 max-w-7xl mx-auto" :class="auth.isAuthenticated ? 'mb-16 lg:mb-0' : ''">
         <RouterView v-slot="{ Component }">
           <transition 
             name="fade-slide" 
@@ -126,7 +143,7 @@ const toggleMobileMenu = () => {
     </main>
 
     <!-- Mobile Tab Bar -->
-    <div class="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#11110f]/90 backdrop-blur-2xl border-t border-stone-800/50 flex items-center justify-around px-4 z-30">
+    <div v-if="auth.isAuthenticated" class="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#11110f]/90 backdrop-blur-2xl border-t border-stone-800/50 flex items-center justify-around px-4 z-30">
       <RouterLink to="/" class="mobile-tab" active-class="active">
         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />

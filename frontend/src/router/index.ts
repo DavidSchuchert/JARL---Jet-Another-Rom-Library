@@ -1,9 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import HomeView from '@/views/HomeView.vue'
+import LoginView from '@/views/LoginView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      meta: { public: true }
+    },
     {
       path: '/',
       name: 'home',
@@ -30,6 +38,18 @@ const router = createRouter({
       component: () => import('@/views/ScraperTestView.vue')
     }
   ]
+})
+
+router.beforeEach(async (to, from, next) => {
+  const auth = useAuthStore()
+  
+  if (!to.meta.public && !auth.isAuthenticated) {
+    next('/login')
+  } else if (to.path === '/login' && auth.isAuthenticated) {
+    next('/')
+  } else {
+    next()
+  }
 })
 
 export default router

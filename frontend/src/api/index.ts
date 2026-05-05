@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig, type AxiosResponse } from 'axios'
+import { useAuthStore } from '@/stores/auth'
 
 const api = axios.create({
   baseURL: '/api',
@@ -10,6 +11,10 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    const authStore = useAuthStore()
+    if (authStore.token) {
+      config.headers.Authorization = `Bearer ${authStore.token}`
+    }
     return config
   },
   (error: AxiosError) => {
@@ -22,6 +27,11 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response) {
       const status = error.response.status
+      if (status === 401) {
+        const authStore = useAuthStore()
+        authStore.logout()
+      }
+      
       switch (status) {
         case 401:
           console.error('Unauthorized access')
