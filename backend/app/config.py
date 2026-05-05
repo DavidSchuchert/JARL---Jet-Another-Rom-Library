@@ -61,6 +61,7 @@ class AppSettings(BaseSettings):
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         extra="ignore",
+        env_prefix="",
     )
 
     name: str = Field(default="JARL", description="Application name")
