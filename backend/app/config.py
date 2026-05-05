@@ -9,12 +9,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class DatabaseSettings(BaseSettings):
     """Database configuration."""
+    model_config = SettingsConfigDict(env_prefix="DATABASE__")
 
     url: str = Field(default="sqlite+aiosqlite:///./jarl.db", description="Database URL")
 
 
 class ScannerSettings(BaseSettings):
     """Scanner configuration."""
+    model_config = SettingsConfigDict(env_prefix="SCANNER__")
 
     roms_path: Path = Field(default=Path("/roms"), description="Path to ROMs directory")
     batch_size: int = Field(default=100, ge=1, description="Batch size for file processing")
@@ -33,6 +35,7 @@ class ScannerSettings(BaseSettings):
 
 class ScraperSettings(BaseSettings):
     """Scraper configuration."""
+    model_config = SettingsConfigDict(env_prefix="SCRAPER__")
 
     username: Optional[str] = Field(default=None, description="ScreenScraper username")
     password: Optional[str] = Field(default=None, description="ScreenScraper password")
@@ -47,6 +50,7 @@ class ScraperSettings(BaseSettings):
 
 class AuthSettings(BaseSettings):
     """Authentication configuration."""
+    model_config = SettingsConfigDict(env_prefix="AUTH__")
 
     username: str = Field(default="admin", description="Admin username")
     password: str = Field(default="admin", description="Admin password")
@@ -61,7 +65,6 @@ class AppSettings(BaseSettings):
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         extra="ignore",
-        env_prefix="",
     )
 
     name: str = Field(default="JARL", description="Application name")
