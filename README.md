@@ -1,62 +1,46 @@
 # JARL - JetAnotherRomLibrary
 
-**Self-hosted ROM metadata manager with automatic scraping from IGDB and ScreenScraper.**
+**Self-hosted ROM metadata manager with automatic scraping from ScreenScraper and IGDB.**
 
-JARL scans your ROM directories, identifies games, and enriches them with metadata (cover art, description, genre, year, publisher, region) using the IGDB and ScreenScraper APIs.
+JARL scans your ROM directories, identifies games by filename, computes xxHash for deduplication, and enriches them with metadata (cover art, description, genre, year, publisher, region) using ScreenScraper.fr (primary) and IGDB (fallback).
 
 ---
 
 ## Features
 
 - **Filesystem Scanner** — Recursively scans ROM directories, parses filenames, detects platforms, computes xxHash/SHA1 for deduplication
-- **IGDB Integration** — Official game database via Twitch OAuth (no credentials needed for basic use)
-- **ScreenScraper Integration** — Community-driven ROM database (free account required)
-- **Deduplication** — Detects duplicates via file hash, skips already-processed files
-- **Progress Tracking** — Live scan progress via SSE (Server-Sent Events)
-- **REST API** — FastAPI backend with Swagger/ReDoc docs at `/api/docs`
+- **ScreenScraper Integration** — Hash-based and name-based lookup via ScreenScraper.fr API v2
+- **IGDB Fallback** — Name-based search via Twitch OAuth (IGDB has no ROM hash lookup)
+- **Deduplication** — xxHash (all files) + SHA1 (files ≤ hash limit) for duplicate detection
+- **Smart Skipping** — Skips files unchanged since last scan (path + size + mtime check)
+- **Progress Tracking** — Live scan events via polling (`/api/scan/events/{job_id}`)
+- **Batch Scraping** — Background metadata enrichment with retry, concurrency, and cancellation
+- **REST API** — FastAPI with Swagger/ReDoc at `/api/docs`
 - **Vue.js Frontend** — Dark-themed UI with platform browser, ROM grid, and search
-- **Docker-Ready** — Single `docker compose up` to run everything
+- **Docker-Ready** — Single `docker compose up`
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Frontend (Vue.js)                      │
-│                   localhost:5173 (dev) /80                   │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ HTTP /api
-┌──────────────────────────▼──────────────────────────────────┐
-│                     Backend (FastAPI)                        │
-│              localhost:8000 /api/docs (Swagger)              │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐  │
-│  │  ROMs    │  │  Scan    │  │ Platform │  │  Scrape    │  │
-│  │  CRUD    │  │  Engine  │  │  Mgmt    │  │  IGDB+SS   │  │
-│  └──────────┘  └──────────┘  └──────────┘  └────────────┘  │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              SQLite (aiosqlite)                       │   │
-│  │         platforms | roms | scan_jobs                 │   │
-│  └──────────────────────────────────────────────────────┘   │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ read-only mount
-                    ┌──────▼──────┐
-                    │  /roms      │
-                    │  (ROM files)│
-                    └─────────────┘
+Browser                      nginx:80
+http://localhost ──────────► ────────────► frontend:80 (static)
+                                        ► backend:8000 (API)
+                                              │
+                            ┌─────────────────┴─────────────────┐
+                            │                                   │
+                      SQLite DB                           /roms (read-only)
+                      jarl.db                           ROM files on host
 ```
 
-**Tech Stack**
-
-| Layer      | Technology                          |
-| ---------- | ----------------------------------- |
-| Backend    | FastAPI 0.109, SQLAlchemy 2.0 (async), aiosqlite |
-| Frontend   | Vue 3, TypeScript, Vite, Pinia, Vue Router |
-| Runtime    | Python 3.11+, Node 20+              |
-| Infra      | Docker Compose, nginx:alpine         |
-| Metadata   | IGDB (OAuth), ScreenScraper REST API |
+| Layer     | Technology                                   |
+| --------- | -------------------------------------------- |
+| Backend   | FastAPI 0.109, SQLAlchemy 2.0 (async), aiosqlite |
+| Frontend  | Vue 3, TypeScript, Vite, Pinia, Vue Router |
+| Runtime   | Python 3.11+, Node 20+                       |
+| Infra     | Docker Compose, nginx:alpine                  |
+| Metadata  | ScreenScraper.fr REST API v2, IGDB API v4   |
 
 ---
 
@@ -67,13 +51,9 @@ JARL scans your ROM directories, identifies games, and enriches them with metada
 ```bash
 git clone https://github.com/your-org/jarl.git
 cd jarl
-```
 
-Copy and edit the environment file:
-
-```bash
 cp docker/.env.example docker/.env
-# Edit docker/.env and set your ROM_PATH
+# Edit docker/.env — set ROM_PATH to your ROMs directory
 ```
 
 ### 2. Start
@@ -82,39 +62,76 @@ cp docker/.env.example docker/.env
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-Services:
 - **Frontend**: http://localhost
 - **API**: http://localhost/api/docs (Swagger UI)
 - **ReDoc**: http://localhost/api/redoc
 
-### 3. Scan Your Roms
+### 3. Scan
 
 ```bash
-# Trigger a scan via the UI or API
-curl -X POST http://localhost:8000/api/scan/start \
-  -H "Content-Type: application/json"
+curl -X POST http://localhost:8000/api/scan/start
 ```
+
+Poll for events:
+
+```bash
+# Get events for job 1, after sequence 0
+curl "http://localhost:8000/api/scan/events/1?after=0"
+```
+
+### 4. Scrape Metadata
+
+```bash
+# Batch scrape all ROMs with missing metadata
+curl -X POST "http://localhost:8000/api/scrape/start?only_missing=true"
+
+# Check progress
+curl http://localhost:8000/api/scrape/status
+```
+
+---
+
+## Directory Structure
+
+JARL detects platforms from path segments — not folder names. The scanner splits the path by `/` and matches path parts against known slugs.
+
+```
+/roms/
+├── nintendo/nes/
+│   ├── Legend of Zelda (USA).nes
+│   └── Super Mario Bros. 3 (Europe).nes
+├── sony/psx/
+│   ├── Final Fantasy VII (USA).bin
+│   └── Metal Gear Solid (Europe).cue
+└── sega/megadrive/
+    └── Sonic The Hedgehog (USA, Europe).md
+```
+
+The scanner walks all subdirectories. No specific folder structure required — only the **file extension** and **path segments** matter for platform detection.
 
 ---
 
 ## Environment Variables
 
-| Variable                     | Default                            | Description                        |
-| ---------------------------- | ---------------------------------- | ---------------------------------- |
-| `DATABASE__URL`              | `sqlite+aiosqlite:///./jarl.db`   | Database connection string         |
-| `SCANNER__ROMS_PATH`         | `/roms`                            | Mount path of ROM directory        |
-| `SCANNER__BATCH_SIZE`        | `100`                              | Files processed per batch          |
-| `SCANNER__WORKERS`           | `4`                                | Parallel scanner workers            |
-| `SCANNER__HASH_SIZE_LIMIT_MB`| `512`                              | Skip full hash for files above this size (MiB). `0` to disable. |
-| `SCRAPER__USERNAME`          | —                                  | ScreenScraper username             |
-| `SCRAPER__PASSWORD`          | —                                  | ScreenScraper password             |
-| `SCRAPER__IGDB_CLIENT_ID`    | —                                  | IGDB OAuth client ID                |
-| `SCRAPER__IGDB_CLIENT_SECRET`| —                                  | IGDB OAuth client secret            |
-| `CORS_ORIGINS`               | `localhost:5173,localhost:80`      | Allowed CORS origins (comma-separated) |
+| Variable                        | Default            | Description                          |
+| ------------------------------- | ------------------ | ------------------------------------ |
+| `DATABASE__URL`                | `sqlite+aiosqlite:///./jarl.db` | Database connection     |
+| `SCANNER__ROMS_PATH`           | `/roms`            | Mount path of ROM directory          |
+| `SCANNER__WORKERS`             | `4`                | Scanner workers (capped at 2 for NAS) |
+| `SCANNER__HASH_SIZE_LIMIT_MB`  | `512`              | Skip SHA1 for files above this (MiB). `0` = hash all |
+| `SCANNER__FILE_TIMEOUT_SECONDS`| `30`               | Max seconds per file before skipping |
+| `SCRAPER__USERNAME`           | —                  | ScreenScraper account username       |
+| `SCRAPER__PASSWORD`           | —                  | ScreenScraper account password       |
+| `SCRAPER__IGDB_CLIENT_ID`      | —                  | IGDB OAuth client ID (from dev.twitch.tv) |
+| `SCRAPER__IGDB_CLIENT_SECRET`  | —                  | IGDB OAuth client secret              |
+| `SCRAPER__RATE_LIMIT`         | `2.0`              | ScreenScraper: min seconds between requests |
+| `CORS_ORIGINS`                 | `localhost:5173,localhost:80` | Allowed CORS origins   |
 
 ---
 
 ## API Reference
+
+Base URL: `http://localhost:8000/api`
 
 ### Health
 
@@ -127,30 +144,36 @@ GET /api/health
 ```
 GET  /api/roms?page=1&page_size=50&platform=nes&search=zelda
 GET  /api/roms/{id}
-PATCH /api/roms/{id}
+GET  /api/roms/stats
+DELETE /api/roms/{id}
 ```
 
 ### Platforms
 
 ```
 GET  /api/platforms
-POST /api/platforms
+GET  /api/platforms/{slug}
+GET  /api/platforms/{slug}/roms?page=1&page_size=50
 ```
 
 ### Scan
 
 ```
-POST /api/scan/start              # Start scan job
-GET  /api/scan/progress           # Live progress (SSE)
-GET  /api/scan/jobs               # All jobs
-DELETE /api/scan/jobs/{id}        # Cancel job
+POST /api/scan/start                    # Start scan (full_scan=false)
+POST /api/scan/start?full_scan=true   # Full rescan (re-hash all)
+GET  /api/scan/events/{job_id}?after=0 # Poll scan events (polling)
+GET  /api/scan/status/{job_id}         # Get job details
+GET  /api/scan/progress                # Current scan stats
 ```
 
 ### Scrape
 
 ```
-POST /api/scrape/rom/{id}         # Scrape single ROM
-POST /api/scrape/batch?platform=nes&missing_only=true   # Batch scrape
+POST /api/scrape/start?only_missing=true   # Batch scrape
+POST /api/scrape/rom/{rom_id}             # Single ROM rescrape
+GET  /api/scrape/status                    # Batch progress
+POST /api/scrape/stop                     # Cancel running batch
+GET  /api/scrape/test-auth                # Test credentials
 ```
 
 Full docs at `/api/docs` (Swagger UI).
@@ -163,14 +186,8 @@ Full docs at `/api/docs` (Swagger UI).
 
 ```bash
 cd backend
-
-# Install dependencies
 uv sync
-
-# Run tests
-uv run pytest
-
-# Run with hot-reload
+uv run pytest -v
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
@@ -178,21 +195,9 @@ uv run uvicorn app.main:app --reload --port 8000
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Dev server with hot-reload
-npm run dev
-
-# Production build
-npm run build
-```
-
-### Build Docker Images
-
-```bash
-docker compose -f docker/docker-compose.yml build
+npm run dev      # Development server
+npm run build    # Production build
 ```
 
 ---
@@ -203,45 +208,71 @@ docker compose -f docker/docker-compose.yml build
 jarl/
 ├── backend/
 │   ├── app/
-│   │   ├── api/           # FastAPI route modules (health, roms, scan, platforms, scrape)
-│   │   ├── models.py      # SQLAlchemy ORM models
-│   │   ├── schemas.py     # Pydantic request/response schemas
-│   │   ├── config.py      # pydantic-settings configuration
-│   │   ├── database.py    # Async SQLite setup
+│   │   ├── api/           # FastAPI routes
+│   │   │   ├── health.py
+│   │   │   ├── roms.py
+│   │   │   ├── platforms.py
+│   │   │   ├── scan.py
+│   │   │   └── scrape.py
+│   │   ├── models.py      # SQLAlchemy models
+│   │   ├── schemas.py     # Pydantic schemas
+│   │   ├── config.py      # pydantic-settings
+│   │   ├── database.py    # Async SQLite
 │   │   ├── scanner/
-│   │   │   ├── filesystem.py  # ROM directory scanner
-│   │   │   ├── parser.py      # Filename parser (region, year, title)
-│   │   │   ├── dedup.py       # Hash-based deduplication
-│   │   │   └── platforms.py  # Platform registry & mapping
+│   │   │   ├── filesystem.py   # ROM directory scanner
+│   │   │   ├── parser.py       # Filename → title/region/year
+│   │   │   ├── dedup.py        # xxHash/SHA1 deduplication
+│   │   │   ├── platforms.py    # Platform registry (80+ platforms)
+│   │   │   └── progress.py     # Scan event buffering
 │   │   └── scraper/
-│   │       ├── base.py        # Abstract scraper base class
-│   │       ├── igdb.py        # IGDB API client
-│   │       ├── screenscraper.py # ScreenScraper API client
-│   │       └── batch.py       # Batch scraping with rate limiting
+│   │       ├── base.py         # Abstract scraper class
+│   │       ├── screenscraper.py # ScreenScraper API v2
+│   │       ├── igdb.py         # IGDB API v4 (Twitch OAuth)
+│   │       └── batch.py        # Batch scraping engine
 │   └── tests/
 ├── frontend/
-│   ├── src/
-│   │   ├── views/        # Page components
-│   │   ├── components/   # Reusable UI components
-│   │   ├── stores/       # Pinia state stores
-│   │   ├── api/          # Backend API client
-│   │   └── router/       # Vue Router routes
-│   └── dist/             # Built assets (served by nginx)
+│   └── src/
+│       ├── views/         # HomeView, ScanView, PlatformsView, RomDetailView, ScraperTestView
+│       ├── components/    # RomCard, RomGrid, ScanProgress, FilterBar, SearchBar, PlatformBadge
+│       ├── stores/        # Pinia stores
+│       └── api/           # API client
 ├── docker/
 │   ├── docker-compose.yml
 │   ├── Dockerfile.backend
 │   ├── Dockerfile.frontend
 │   ├── nginx.conf
 │   └── .env.example
-├── docs/                 # Wiki documentation
-└── README.md
+└── docs/
 ```
 
 ---
 
-## Platform Support
+## Supported Platforms
 
-JARL auto-detects platforms from directory structure and filenames. See [docs/platforms.md](docs/platforms.md) for the full platform list and mapping.
+JARL supports 80+ platforms. Key slugs:
+
+| Slug              | Name                        | Family    |
+| ----------------- | --------------------------- | --------- |
+| `nes`             | Nintendo Entertainment System | Nintendo |
+| `snes`            | Super Nintendo              | Nintendo |
+| `n64`             | Nintendo 64                | Nintendo |
+| `gamecube`        | Nintendo GameCube          | Nintendo |
+| `wii`             | Nintendo Wii               | Nintendo |
+| `switch`          | Nintendo Switch            | Nintendo |
+| `psx`             | PlayStation                | Sony      |
+| `ps2`             | PlayStation 2              | Sony      |
+| `ps3`             | PlayStation 3              | Sony      |
+| `psp`             | PlayStation Portable       | Sony      |
+| `megadrive`       | Mega Drive / Genesis       | Sega      |
+| `saturn`          | Sega Saturn               | Sega      |
+| `dreamcast`       | Sega Dreamcast            | Sega      |
+| `atari2600`       | Atari 2600                | Atari     |
+| `gameboy`         | Game Boy                  | Nintendo  |
+| `gameboyadvance`   | Game Boy Advance          | Nintendo  |
+| `nds`             | Nintendo DS               | Nintendo  |
+| `3ds`             | Nintendo 3DS              | Nintendo  |
+
+See [docs/platforms.md](docs/platforms.md) for the full list.
 
 ---
 

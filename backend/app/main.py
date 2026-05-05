@@ -2,10 +2,11 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health, platforms, roms, scan, scrape
+from app.api import auth, health, platforms, roms, scan, scrape
+from app.auth import get_current_user
 from app.config import get_settings
 from app.database import close_db, init_db
 
@@ -57,11 +58,15 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Public routes
+    app.include_router(auth.router, prefix="/api")
     app.include_router(health.router, prefix="/api", tags=["Health"])
-    app.include_router(roms.router, prefix="/api", tags=["ROMs"])
-    app.include_router(scan.router, prefix="/api", tags=["Scan"])
-    app.include_router(platforms.router, prefix="/api", tags=["Platforms"])
-    app.include_router(scrape.router, prefix="/api", tags=["Scrape"])
+    
+    # Protected routes
+    app.include_router(roms.router, prefix="/api", tags=["ROMs"], dependencies=[Depends(get_current_user)])
+    app.include_router(scan.router, prefix="/api", tags=["Scan"], dependencies=[Depends(get_current_user)])
+    app.include_router(platforms.router, prefix="/api", tags=["Platforms"], dependencies=[Depends(get_current_user)])
+    app.include_router(scrape.router, prefix="/api", tags=["Scrape"], dependencies=[Depends(get_current_user)])
 
     return app
 

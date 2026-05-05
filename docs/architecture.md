@@ -4,33 +4,19 @@
 
 ## System Overview
 
-JARL is split into two services:
-
 ```
-┌──────────────────────────────────────────────────────────┐
-│  Browser                                                  │
-│  http://localhost                                         │
-└─────────────────────┬────────────────────────────────────┘
-                      │ HTTP (REST + SSE)
-         ┌────────────▼────────────┐
-         │  nginx :80              │
-         │  Reverse proxy          │
-         └────────────┬────────────┘
-                      │
-       ┌──────────────┴──────────────┐
-       │                             │
-  ┌────▼─────────┐           ┌──────▼──────┐
-  │  Frontend    │           │   Backend   │
-  │  Vue 3        │           │  FastAPI    │
-  │  localhost    │           │  localhost   │
-  │  :5173        │           │  :8000       │
-  │  (static)     │           │              │
-  └───────────────┘           └──────┬──────┘
-                                      │
-                               ┌──────▼──────┐
-                               │  SQLite      │
-                               │  aiosqlite  │
-                               └─────────────┘
+Browser
+http://localhost ──────► nginx:80
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+               frontend:80          backend:8000
+               (Vue.js static)       (FastAPI)
+                                        │
+                               ┌────────┴────────┐
+                               │                  │
+                          SQLite DB          /roms (RO mount)
+                          jarl.db           ROM files on host
 ```
 
 ---
@@ -39,19 +25,15 @@ JARL is split into two services:
 
 Located in `backend/app/`.
 
-### Entry Point
-
-`main.py` — FastAPI app factory. Initializes CORS, registers routers, manages lifespan (startup/shutdown).
-
 ### API Routes (`app/api/`)
 
 | Module | Responsibility |
 |---|---|
-| `health.py` | Health check, uptime |
-| `roms.py` | ROM CRUD, pagination, filtering |
-| `platforms.py` | Platform registry |
-| `scan.py` | Scan job management, SSE progress |
-| `scrape.py` | Metadata scraping orchestration |
+| `health.py` | Health check, version, uptime |
+| `roms.py` | ROM CRUD, pagination, filtering, stats |
+| `platforms.py` | Platform registry, per-platform ROM listing |
+| `scan.py` | Scan job management, event polling |
+| `scrape.py` | Batch scraping, auth testing |
 
 ### Data Layer
 
@@ -59,87 +41,94 @@ Located in `backend/app/`.
 |---|---|
 | `models.py` | SQLAlchemy ORM models (Platform, Rom, ScanJob) |
 | `schemas.py` | Pydantic v2 schemas (request/response validation) |
-| `database.py` | Async SQLite session factory, `get_db_context()` |
-| `config.py` | pydantic-settings, environment variable binding |
+| `database.py` | Async SQLite session factory via `get_db_context()` |
+| `config.py` | pydantic-settings — env binding with `__` delimiter |
 
 ### Scanner (`app/scanner/`)
 
 | File | Responsibility |
 |---|---|
-| `filesystem.py` | Directory walker, file discovery, metadata extraction |
-| `parser.py` | Filename → (title, region, year) parser using regex |
+| `filesystem.py` | Directory walker, file discovery, batch processing |
+| `parser.py` | Filename → (title, region, year, languages, version) |
 | `dedup.py` | xxHash/SHA1 deduplication checks |
-| `platforms.py` | Platform slug registry, extension mappings |
-| `progress.py` | SSE event buffering for live progress |
+| `platforms.py` | Platform registry — 80+ platforms with extensions and path patterns |
+| `progress.py` | In-memory scan event buffer |
 
 ### Scraper (`app/scraper/`)
 
 | File | Responsibility |
 |---|---|
-| `base.py` | Abstract `Scraper` class, rate limiting |
-| `igdb.py` | IGDB API client via Twitch OAuth |
-| `screenscraper.py` | ScreenScraper REST API client |
-| `batch.py` | Batch scrape queue with retry logic |
+| `base.py` | Abstract `BaseScraper` class, `ScraperResult` dataclass |
+| `screenscraper.py` | ScreenScraper.fr API v2 — hash + name lookup |
+| `igdb.py` | IGDB API v4 via Twitch OAuth — name search only |
+| `batch.py` | Batch scraping engine — concurrency, retry, progress tracking |
 
 ---
 
 ## Frontend
 
-Located in `frontend/src/`. Vue 3 with TypeScript, Vite, Pinia (stores), Vue Router.
+Located in `frontend/src/`. Vue 3 + TypeScript + Vite + Pinia + Vue Router.
 
 ```
 src/
-├── main.ts           # App bootstrap
-├── App.vue           # Root component
-├── views/            # Page-level components
-│   ├── HomeView.vue
-│   └── PlatformView.vue
-├── components/       # Reusable UI components
-│   ├── RomCard.vue
-│   ├── PlatformBadge.vue
-│   └── ScanProgress.vue
-├── stores/           # Pinia state stores
-│   ├── roms.ts
-│   └── scan.ts
-├── api/              # Backend API client
-│   └── index.ts
-└── router/
-    └── index.ts
+├── views/
+│   ├── HomeView.vue       # ROM grid with filter bar
+│   ├── ScanView.vue       # Scan trigger + live progress
+│   ├── PlatformsView.vue  # Platform listing
+│   ├── RomDetailView.vue  # Single ROM detail
+│   └── ScraperTestView.vue # Scraper auth testing
+├── components/
+│   ├── RomCard.vue        # Single ROM card
+│   ├── RomGrid.vue        # Paginated ROM grid
+│   ├── ScanProgress.vue   # Scan progress display
+│   ├── FilterBar.vue      # Region/year/genre filters
+│   ├── SearchBar.vue      # Title search
+│   └── PlatformBadge.vue  # Platform badge
+├── stores/               # Pinia state stores
+├── api/                  # Backend API client
+└── router/              # Vue Router routes
 ```
+
+Routes:
+- `/` — HomeView (ROM grid)
+- `/roms/:id` — RomDetailView
+- `/platforms` — PlatformsView
+- `/scan` — ScanView
+- `/scraper-test` — ScraperTestView
 
 ---
 
 ## Data Model
 
 ```
-┌──────────────┐       ┌──────────────────────┐
-│  Platform    │  1:N  │        Rom           │
-│──────────────│◄──────│──────────────────────│
-│ id (PK)      │       │ id (PK)              │
-│ slug (unique)│       │ path                 │
-│ name         │       │ platform_slug (FK)   │
-│ family       │       │ title                │
-│ icon         │       │ description          │
-└──────────────┘       │ year, genre, region │
-                       │ publisher, developer│
-                       │ size, mtime         │
-                       │ hash_sha1, hash_xx │
-                       │ cover_url           │
-                       │ scrape_status       │
-                       │ created_at, updated_at│
-                       └──────────────────────┘
+Platform
+├── id (PK)
+├── slug (unique, indexed)
+├── name
+├── family
+└── icon
 
-┌──────────────────────────┐
-│       ScanJob            │
-│──────────────────────────│
-│ id (PK)                  │
-│ status (pending/running/ │
-│           completed/failed│
-│ total_files              │
-│ scanned_files            │
-│ errors                   │
-│ started_at, completed_at │
-└──────────────────────────┘
+Rom
+├── id (PK)
+├── path (unique)
+├── filename
+├── platform_slug (FK → Platform.slug)
+├── title, description, year, genre
+├── publisher, developer, players
+├── region
+├── size, mtime
+├── hash_sha1 (indexed), hash_xxhash (indexed)
+├── igdb_id, screenscraper_id
+├── cover_url
+├── scrape_status  -- "pending" | "done" | "failed"
+├── created_at, updated_at
+
+ScanJob
+├── id (PK)
+├── status          -- "running" | "completed" | "failed"
+├── total_files, scanned_files, errors
+├── current_file
+├── started_at, completed_at
 ```
 
 ---
@@ -150,41 +139,66 @@ src/
 POST /api/scan/start
        │
        ▼
-┌─────────────────────────┐
-│ 1. Create ScanJob (DB)  │
-│ 2. Return job_id        │
-└──────────┬──────────────┘
-           │ async background task
-           ▼
-┌─────────────────────────┐
-│ 3. Walk /roms/          │
-│    (filesystem.py)      │
-│                         │
-│    For each file:       │
-│    a) Parse filename    │
-│    b) Detect platform   │
-│    c) Compute hash       │
-│    d) Check dedup        │
-│    e) Insert/update ROM │
-│    f) Emit SSE event    │
-└──────────┬──────────────┘
-           │
-           ▼
-┌─────────────────────────┐
-│ 4. Mark job completed   │
-│ 5. SSE "complete" event │
-└─────────────────────────┘
+┌──────────────────────────────────┐
+│ 1. Create ScanJob (DB)           │
+│ 2. Count total ROM files          │
+│ 3. Return job_id=5, status=started│
+└──────────────┬───────────────────┘
+              │ async background task
+              ▼
+┌──────────────────────────────────┐
+│ walk_directory()                  │
+│   AsyncDirectoryWalker queue      │
+│   Yields batches of BATCH_SIZE=100│
+│                                    │
+│ For each file:                     │
+│   a) Skip if path+size+mtime      │
+│      matches existing DB entry     │
+│   b) Compute xxhash (always)      │
+│   c) Compute sha1 if size <= limit │
+│   d) Check dedup via xxhash       │
+│   e) Detect platform from path    │
+│   f) Parse filename               │
+│   g) Record scan event            │
+│   h) Save batch to DB every 100    │
+└──────────────┬───────────────────┘
+              │
+              ▼
+┌──────────────────────────────────┐
+│ Mark job completed                │
+│ Record "success" scan event       │
+└──────────────────────────────────┘
 ```
 
 ---
 
 ## Deduplication
 
-Two ROMs are considered duplicates if they share the same `hash_xxhash` (fast) **or** `hash_sha1` (full file).
+Two files are considered duplicates if they share the same `hash_xxhash`.
 
-The scanner computes `xxhash` for all files regardless of size. SHA1 is computed only for files below `SCANNER__HASH_SIZE_LIMIT_MB` (default 512 MiB). Larger files get `hash_sha1 = null`.
+- **xxhash**: computed for **all** files (fast, streaming)
+- **SHA1**: computed only for files ≤ `SCANNER__HASH_SIZE_LIMIT_MB` (default 512 MiB). Set to `0` to always compute SHA1.
 
-When a duplicate is found:
-- If the existing ROM has more metadata, skip the new file
+When a duplicate is detected:
+- If the existing entry has more metadata, skip the new file
 - If the new file has more metadata, update the existing entry
-- If equal, keep the first-seen entry
+- Otherwise keep the first-seen entry
+
+---
+
+## Smart Skipping
+
+If `full_scan=false` (default), the scanner skips any file where **all three** match an existing DB entry:
+- `path` equals stored path
+- `size` equals stored size
+- `mtime` equals stored mtime
+
+This means unchanged ROMs are skipped without re-hashing.
+
+---
+
+## Scan Events (Polling)
+
+Scan progress uses **polling** via `GET /api/scan/events/{job_id}?after=N`. The client polls this endpoint, passing the last seen `sequence` number to get only new events.
+
+Events are stored in an in-memory circular buffer in `progress.py` (per job, sequence-numbered).

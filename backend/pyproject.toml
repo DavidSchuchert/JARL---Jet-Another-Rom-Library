@@ -17,6 +17,9 @@ dependencies = [
     "xxhash>=3.4.1",
     "httpx>=0.26.0",
     "tenacity>=8.2.3",
+    "passlib[bcrypt]>=1.7.4",
+    "python-jose[cryptography]>=3.5.0",
+    "pyjwt>=2.12.1",
 ]
 
 [project.optional-dependencies]

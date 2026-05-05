@@ -26,7 +26,7 @@ Edit `docker/.env`:
 | `ROM_PATH` | **Yes** | Absolute path to your ROMs directory on the host |
 | `SCRAPER__IGDB_CLIENT_ID` | No | IGDB OAuth client ID |
 | `SCRAPER__IGDB_CLIENT_SECRET` | No | IGDB OAuth client secret |
-| `SCRAPER__USERNAME` | No | ScreenScraper account (needed for private games) |
+| `SCRAPER__USERNAME` | No | ScreenScraper account (required for private game data) |
 | `SCRAPER__PASSWORD` | No | ScreenScraper password |
 
 ### 3. Start
@@ -38,15 +38,19 @@ docker compose -f docker/docker-compose.yml up -d
 JARL will be available at:
 
 - **Frontend**: http://localhost
-- **API**: http://localhost/api/docs
+- **API**: http://localhost/api/docs (Swagger UI)
 - **ReDoc**: http://localhost/api/redoc
 
-### 4. Initial scan
-
-Point your browser to the frontend and trigger a scan, or use the API:
+### 4. Run your first scan
 
 ```bash
 curl -X POST http://localhost:8000/api/scan/start
+```
+
+Poll scan events for progress:
+
+```bash
+curl "http://localhost:8000/api/scan/events/1?after=0"
 ```
 
 ---
@@ -73,7 +77,7 @@ uv run uvicorn app.main:app --port 8000
 cd frontend
 npm install
 npm run dev   # Development
-npm run build # Production (serves from frontend/dist/)
+npm run build # Production (served from frontend/dist/)
 ```
 
 Configure a reverse proxy (nginx) to route `/api` → `localhost:8000` and `/` → `frontend/dist`.
@@ -84,14 +88,15 @@ Configure a reverse proxy (nginx) to route `/api` → `localhost:8000` and `/` �
 
 | Host path | Container path | Purpose |
 |---|---|---|
-| `${ROM_PATH}` | `/roms:ro` | Your ROM files (read-only) |
-| `jarl-data` (Docker volume) | `/app/data` | SQLite database, cached covers |
+| `${ROM_PATH}` | `/roms:ro` | Your ROM files (read-only mount) |
+| `jarl-data` (Docker volume) | `/app/data` | SQLite database, cached data |
 
 The ROMs mount is **read-only** — JARL never writes to your ROM files.
 
-To inspect the database from the host:
+To inspect the database:
 
 ```bash
 docker exec jarl-backend python -c \
-  "import sqlite3; c = sqlite3.connect('/app/data/jarl.db'); print(c.execute('SELECT COUNT(*) FROM roms').fetchone()[0])"
+  "import sqlite3; c = sqlite3.connect('/app/data/jarl.db'); \
+   print('ROMs:', c.execute('SELECT COUNT(*) FROM roms').fetchone()[0])"
 ```

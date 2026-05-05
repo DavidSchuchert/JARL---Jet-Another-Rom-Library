@@ -45,25 +45,21 @@ class ScraperSettings(BaseSettings):
     igdb_client_secret: Optional[str] = Field(default=None, description="IGDB Client Secret")
 
 
+class AuthSettings(BaseSettings):
+    """Authentication configuration."""
+
+    username: str = Field(default="admin", description="Admin username")
+    password: str = Field(default="admin", description="Admin password")
+    token_expire_minutes: int = Field(default=1440, description="Token expiration in minutes")
+
+
 class AppSettings(BaseSettings):
-    """Main application settings."""
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        env_nested_delimiter="__",
-        env_prefix="",
-    )
-
-    name: str = Field(default="JARL", description="Application name")
-    version: str = Field(default="1.0.0", description="Application version")
-    debug: bool = Field(default=False, description="Debug mode")
+...
     secret_key: str = Field(default="change-this-in-production", description="Secret key")
 
+    auth: AuthSettings = Field(default_factory=AuthSettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    scanner: ScannerSettings = Field(default_factory=ScannerSettings)
-    scraper: ScraperSettings = Field(default_factory=ScraperSettings)
+...
 
     cors_origins: list[str] = Field(
         default=["http://localhost:5173", "http://localhost:80"],

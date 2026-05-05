@@ -2,19 +2,13 @@
 
 Full interactive docs at **`/api/docs`** (Swagger UI) or **`/api/redoc`** (ReDoc).
 
----
-
-## Base URL
-
-```
-http://localhost:8000/api
-```
+Base URL: `http://localhost:8000/api`
 
 ---
 
 ## Authentication
 
-Currently **no authentication** — JARL is designed for local/private network use. Add a reverse-proxy auth layer (nginx Basic Auth, Cloudflare Access, etc.) if exposed publicly.
+Currently **no authentication** — JARL is designed for local/private network use. Add a reverse-proxy auth layer (nginx Basic Auth, Cloudflare Access) if exposed publicly.
 
 ---
 
@@ -41,15 +35,16 @@ Currently **no authentication** — JARL is designed for local/private network u
 
 List ROMs with pagination and filtering.
 
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `page` | int | `1` | Page number |
-| `page_size` | int | `50` | Items per page (max 200) |
-| `platform` | string | — | Filter by platform slug |
-| `search` | string | — | Full-text search on title |
-| `region` | string | — | Filter by region |
-| `genre` | string | — | Filter by genre |
-| `missing_only` | bool | `false` | Only ROMs without metadata |
+| Parameter     | Type    | Default | Description |
+| ------------- | ------- | ------- | ----------- |
+| `page`        | int     | `1`     | Page number |
+| `page_size`   | int     | `50`    | Items per page (max 100) |
+| `platform`    | string  | —       | Filter by platform slug |
+| `region`      | string  | —       | Filter by region |
+| `year`        | int     | —       | Filter by release year |
+| `genre`       | string  | —       | Filter by genre |
+| `search`      | string  | —       | Full-text search on title |
+| `missing_only` | bool   | `false` | Only ROMs with `scrape_status != "done"` |
 
 ```json
 {
@@ -75,21 +70,28 @@ List ROMs with pagination and filtering.
 }
 ```
 
-#### `GET /api/roms/{id}`
+#### `GET /api/roms/{rom_id}`
 
 Get a single ROM by ID.
 
-#### `PATCH /api/roms/{id}`
+#### `GET /api/roms/stats`
 
-Update ROM metadata manually.
+Library statistics.
 
 ```json
 {
-  "title": "New Title",
-  "region": "USA",
-  "year": 1990
+  "total_roms": 1337,
+  "total_platforms": 18,
+  "total_size_bytes": 536870912000,
+  "roms_with_igdb": 800,
+  "roms_with_screenscraper": 1200,
+  "last_scan": null
 }
 ```
+
+#### `DELETE /api/roms/{rom_id}`
+
+Delete a ROM.
 
 ---
 
@@ -97,7 +99,7 @@ Update ROM metadata manually.
 
 #### `GET /api/platforms`
 
-List all platforms with ROM counts.
+List all platforms that have at least one ROM, with ROM counts.
 
 ```json
 [
@@ -111,17 +113,19 @@ List all platforms with ROM counts.
 ]
 ```
 
-#### `POST /api/platforms`
+#### `GET /api/platforms/{slug}`
 
-Create a new platform entry.
+Get a single platform by slug.
 
-```json
-{
-  "slug": "nes",
-  "name": "Nintendo Entertainment System",
-  "family": "Nintendo"
-}
-```
+#### `GET /api/platforms/{slug}/roms`
+
+Get ROMs for a specific platform (paginated).
+
+| Parameter   | Type | Default | Description |
+| ----------- | ---- | ------- | ----------- |
+| `slug`      | path | —       | Platform slug |
+| `page`      | int  | `1`     | Page number |
+| `page_size` | int  | `50`    | Items per page |
 
 ---
 
@@ -131,91 +135,151 @@ Create a new platform entry.
 
 Trigger a new filesystem scan.
 
+| Query Param  | Type | Default | Description |
+| ------------ | ---- | ------- | ----------- |
+| `full_scan` | bool | `false` | Re-hash all files even if unchanged |
+
 ```json
 {
   "job_id": 5,
-  "status": "running",
-  "message": "Scan job started"
+  "status": "started",
+  "message": "Scan job 5 started successfully"
+}
+```
+
+#### `GET /api/scan/events/{job_id}?after=N`
+
+Poll scan events for a job. Returns all events with `sequence > after`.
+
+```json
+[
+  {
+    "sequence": 1,
+    "type": "info",
+    "message": "Found 247 ROM files",
+    "current_file": null,
+    "scanned_files": 0,
+    "created_at": "2026-05-01T14:00:00Z"
+  },
+  {
+    "sequence": 2,
+    "type": "file",
+    "message": "Super Mario Bros. 3 (Europe).nes",
+    "current_file": "nintendo/nes/Super Mario Bros. 3 (Europe).nes",
+    "scanned_files": 1,
+    "created_at": "2026-05-01T14:00:01Z"
+  }
+]
+```
+
+Event `type` values: `info`, `file`, `error`, `success`.
+
+#### `GET /api/scan/status/{job_id}`
+
+Get detailed status of a specific scan job.
+
+```json
+{
+  "id": 1,
+  "status": "completed",
+  "total_files": 247,
+  "scanned_files": 247,
+  "current_file": null,
+  "errors": 0,
+  "started_at": "2026-05-01T14:00:00Z",
+  "completed_at": "2026-05-01T14:03:22Z",
+  "progress_percentage": 100.0
 }
 ```
 
 #### `GET /api/scan/progress`
 
-**Server-Sent Events** — live scan progress stream.
+Get progress of the currently running scan job (if any).
 
+```json
+{
+  "current_job": { ... },
+  "total_jobs": 5,
+  "running_jobs": 0,
+  "completed_jobs": 4
+}
 ```
-Accept: text/event-stream
-
-event: progress
-data: {"sequence":1,"type":"info","message":"Scanning nintendo/nes/","scanned_files":0}
-
-event: progress
-data: {"sequence":2,"type":"file","current_file":"Super Mario Bros. 3 (Europe).nes","scanned_files":1}
-
-event: progress
-data: {"sequence":3,"type":"complete","message":"Scan complete","scanned_files":247}
-```
-
-#### `GET /api/scan/jobs`
-
-List all scan jobs.
-
-#### `DELETE /api/scan/jobs/{id}`
-
-Cancel a running scan job.
 
 ---
 
 ### Scrape
 
-#### `POST /api/scrape/rom/{id}`
+#### `POST /api/scrape/start`
 
-Scrape metadata for a single ROM.
+Start a batch scrape job.
+
+| Query Param    | Type    | Default | Description |
+| -------------- | ------- | ------- | ----------- |
+| `platform`     | string  | —       | Filter to a specific platform |
+| `only_missing` | bool    | `true`  | Only scrape ROMs with `scrape_status != "done"` |
 
 ```json
 {
-  "success": true,
-  "title": "Super Mario Bros. 3",
-  "description": "...",
-  "cover_url": "https://...",
-  "year": 1988,
-  "genre": "Platformer",
-  "publisher": "Nintendo"
+  "status": "started",
+  "message": "Started scraping 120 ROMs",
+  "total": 120
 }
 ```
 
-#### `POST /api/scrape/batch`
+#### `POST /api/scrape/rom/{rom_id}`
 
-Batch scrape ROMs.
-
-| Parameter | Type | Description |
-|---|---|---|
-| `platform` | string | Filter to a specific platform |
-| `missing_only` | bool | Only scrape ROMs with `scrape_status = "pending"` |
-| `priority` | string | `igdb` or `screenscraper` (which source to try first) |
+Force re-scrape of a single ROM.
 
 ```json
 {
-  "queued": 120,
-  "message": "Batch scrape started"
+  "status": "started",
+  "message": "Started scraping ROM 42",
+  "total": 1
 }
 ```
 
----
+#### `GET /api/scrape/status`
 
-### Stats
-
-#### `GET /api/stats`
-
-Library statistics.
+Get current batch scrape progress.
 
 ```json
 {
-  "total_roms": 1337,
-  "total_platforms": 18,
-  "total_size_bytes": 536870912000,
-  "roms_with_igdb": 800,
-  "roms_with_screenscraper": 1200,
-  "last_scan": "2026-05-01T14:30:00Z"
+  "status": "running",
+  "total": 120,
+  "done": 47,
+  "success": 44,
+  "failed": 3,
+  "skipped": 0,
+  "current_file": "zelda.nes",
+  "percent": 39.17,
+  "errors": ["bad rom.zip: Not found"]
+}
+```
+
+#### `POST /api/scrape/stop`
+
+Cancel the running batch scrape job.
+
+```json
+{
+  "message": "Scraping cancellation requested"
+}
+```
+
+#### `GET /api/scrape/test-auth`
+
+Test ScreenScraper and IGDB credentials.
+
+```json
+{
+  "screenscraper": {
+    "status": "success",
+    "user": "my_username",
+    "details": { ... }
+  },
+  "igdb": {
+    "status": "success",
+    "message": "Authenticated successfully"
+  }
 }
 ```

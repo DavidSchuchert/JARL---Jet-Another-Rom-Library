@@ -9,25 +9,15 @@ Get JARL running and your first ROMs scanned in 5 minutes.
 - Docker & Docker Compose installed
 - ROMs directory on your host
 
-## 2. Start JARL
+## 2. Configure & Start
 
 ```bash
 git clone https://github.com/your-org/jarl.git
 cd jarl
 
 cp docker/.env.example docker/.env
-# Edit docker/.env — set ROM_PATH to your ROMs directory
-```
+# Set ROM_PATH to your ROMs directory in docker/.env
 
-Example `.env` excerpt:
-
-```bash
-ROM_PATH=/home/david/roms
-```
-
-Then:
-
-```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
 
@@ -37,8 +27,6 @@ docker compose -f docker/docker-compose.yml up -d
 http://localhost
 ```
 
-You should see an empty library with your platforms listed.
-
 ## 4. Scan
 
 Click **"Scan Library"** in the UI, or:
@@ -47,32 +35,38 @@ Click **"Scan Library"** in the UI, or:
 curl -X POST http://localhost:8000/api/scan/start
 ```
 
-Watch live progress via SSE:
+Poll for live progress:
 
 ```bash
-curl -N http://localhost:8000/api/scan/progress
+curl "http://localhost:8000/api/scan/events/1?after=0"
 ```
 
 ## 5. Scrape Metadata
 
-Once scanned, enrich your ROMs:
+Once scanned, enrich your ROMs with metadata:
 
 ```bash
-# Scrape all missing metadata
-curl -X POST "http://localhost:8000/api/scrape/batch?missing_only=true"
+# Scrape all ROMs missing metadata
+curl -X POST "http://localhost:8000/api/scrape/start?only_missing=true"
+
+# Check progress
+curl http://localhost:8000/api/scrape/status
+
+# Cancel if needed
+curl -X POST http://localhost:8000/api/scrape/stop
 ```
 
 Or click **"Scrape All"** in the UI.
 
 ## 6. Browse
 
-Navigate by platform in the sidebar. Use the search bar to find games by title.
+Navigate platforms in the sidebar. Search by title with the search bar.
 
 ---
 
 ## Next Steps
 
-- [Configure IGDB credentials](scraper.md#getting-credentials) for better Western game coverage
-- [Add ScreenScraper credentials](scraper.md#getting-credentials) for Japanese/European exclusives
-- [Configure CORS](configuration.md#cors) if accessing from a different hostname
-- [Set up a reverse proxy](https://github.com/nginx-proxy/nginx-proxy) with HTTPS for network access
+- [Add ScreenScraper credentials](scraping.md#screenscraper) — required for private/unverified games
+- [Add IGDB credentials](scraping.md#igdb) — improves coverage for Western commercial titles
+- [Configure hash size limit](configuration.md#scanner) — set to `0` to always compute SHA1 for deduplication
+- [Browse all platforms](platforms.md)

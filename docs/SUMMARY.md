@@ -12,9 +12,9 @@
 ## Reference
 
 - [Configuration](configuration.md) — All environment variables, explained
-- [Platforms](platforms.md) — Supported platforms, slug names, directory structure
+- [Platforms](platforms.md) — Supported platforms, slug names, path detection
 - [API Reference](api.md) — Full REST API documentation
-- [Scraper Details](scraper.md) — IGDB vs ScreenScraper, rate limits, credentials
+- [Scraping](scraping.md) — ScreenScraper vs IGDB, credential setup, batch scraping
 
 ## Development
 

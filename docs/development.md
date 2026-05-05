@@ -23,24 +23,23 @@ Swagger docs: http://localhost:8000/api/docs
 
 ### Environment
 
-Backend reads `.env` from `backend/` directory. Create one if needed:
+The backend reads `.env` from `backend/`. Copy from the Docker example:
 
 ```bash
-cd backend
 cp ../docker/.env.example .env
-# Edit .env with your paths
+# Edit .env — especially SCANNER__ROMS_PATH and SCRAPER__* vars
 ```
 
 ### Database
 
-The SQLite database is at `backend/jarl.db` (or wherever `DATABASE__URL` points).
+SQLite database at `backend/jarl.db` (or wherever `DATABASE__URL` points).
 
 To reset:
 
 ```bash
 rm backend/jarl.db
 uv run uvicorn app.main:app --reload --port 8000
-# JARL will re-initialize on startup
+# JARL re-initializes automatically on startup
 ```
 
 ---
@@ -52,7 +51,7 @@ cd frontend
 
 npm install
 
-# Dev server (proxies /api to :8000)
+# Dev server — proxies /api to :8000
 npm run dev
 
 # Production build
@@ -61,32 +60,19 @@ npm run build
 
 Frontend dev server: http://localhost:5173
 
-### Pinia Stores
-
-State lives in `src/stores/`:
-
-```typescript
-// Example: fetch ROMs
-import { useRomsStore } from '@/stores/roms'
-const romsStore = useRomsStore()
-await romsStore.fetchRoms({ platform: 'nes', page: 1 })
-```
-
-### API Client
-
-Backend calls go through `src/api/index.ts` which wraps `fetch()` with the base URL.
-
 ---
 
 ## Running Both Simultaneously
 
-In two terminals:
+**Terminal 1 — Backend:**
 
 ```bash
-# Terminal 1 — Backend
 cd backend && uv run uvicorn app.main:app --reload --port 8000
+```
 
-# Terminal 2 — Frontend
+**Terminal 2 — Frontend:**
+
+```bash
 cd frontend && npm run dev
 ```
 
@@ -94,7 +80,7 @@ Or use Docker for backend + local Vite:
 
 ```bash
 docker compose -f docker/docker-compose.yml up backend nginx
-npm run dev  # from frontend/
+cd frontend && npm run dev
 ```
 
 ---
@@ -104,20 +90,22 @@ npm run dev  # from frontend/
 ```bash
 cd backend
 
-# Unit tests
-uv run pytest
+# All tests
+uv run pytest -v
 
 # With coverage
 uv run pytest --cov=app --cov-report=term-missing
 
 # Specific test file
 uv run pytest tests/test_scanner_filesystem.py -v
+uv run pytest tests/test_parser.py -v
+uv run pytest tests/test_platforms.py -v
 ```
 
-Test files live in `backend/tests/`:
-- `test_parser.py` — filename parser
-- `test_platforms.py` — platform registry
-- `test_scanner_filesystem.py` — filesystem scanner
+Test files in `backend/tests/`:
+- `test_parser.py` — filename parser (region, year, title extraction)
+- `test_platforms.py` — platform registry (slug lookup, extension mapping)
+- `test_scanner_filesystem.py` — filesystem scanner (walk, batch save)
 
 ---
 
@@ -126,13 +114,13 @@ Test files live in `backend/tests/`:
 ```bash
 cd backend
 
-# Lint (ruff)
+# Lint
 uv run ruff check .
 
-# Format (ruff)
+# Format
 uv run ruff format .
 
-# Type check (mypy)
+# Type check
 uv run mypy app/
 ```
 
