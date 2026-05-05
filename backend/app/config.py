@@ -54,15 +54,27 @@ class AuthSettings(BaseSettings):
 
 
 class AppSettings(BaseSettings):
-...
+    """Main application settings."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_nested_delimiter="__",
+        extra="ignore",
+    )
+
+    name: str = Field(default="JARL", description="Application name")
+    version: str = Field(default="1.0.0", description="Application version")
+    debug: bool = Field(default=False, description="Debug mode")
     secret_key: str = Field(default="change-this-in-production", description="Secret key")
 
     auth: AuthSettings = Field(default_factory=AuthSettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-...
+    scanner: ScannerSettings = Field(default_factory=ScannerSettings)
+    scraper: ScraperSettings = Field(default_factory=ScraperSettings)
 
     cors_origins: list[str] = Field(
-        default=["http://localhost:5173", "http://localhost:80"],
+        default=["*"],
         description="Allowed CORS origins",
     )
 
