@@ -31,11 +31,8 @@ onMounted(() => {
     <!-- Mobile Header -->
     <div v-if="auth.isAuthenticated" class="lg:hidden flex items-center justify-between p-4 border-b border-stone-800 bg-[#11110f]/80 backdrop-blur-xl sticky top-0 z-30">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-md bg-amber-400 text-stone-950 flex items-center justify-center shadow-[inset_0_-2px_0_rgba(0,0,0,0.22)]">
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12v10H6z" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 10h2m-1-1v2m5-1h.01M17 12h.01" />
-          </svg>
+        <div class="w-9 h-9 flex items-center justify-center">
+          <img src="@/assets/Logo_white.svg" alt="JARL Logo" class="w-9 h-9 object-contain" />
         </div>
         <h1 class="text-xl font-black tracking-normal text-stone-50">JARL</h1>
       </div>
@@ -126,7 +123,8 @@ onMounted(() => {
 
     <!-- Main Content -->
     <main class="flex-1 relative overflow-y-auto overflow-x-hidden custom-scrollbar">
-      <div class="absolute inset-0 pointer-events-none opacity-[0.035] bg-[linear-gradient(0deg,transparent_24px,#fff_25px),linear-gradient(90deg,transparent_24px,#fff_25px)] bg-[length:25px_25px]"></div>
+      <div class="absolute inset-0 pointer-events-none opacity-[0.045] bg-[linear-gradient(0deg,transparent_24px,#fff_25px),linear-gradient(90deg,transparent_24px,#fff_25px)] bg-[length:25px_25px]"></div>
+      <div class="circuit-trace pointer-events-none absolute inset-x-0 top-0 h-40 opacity-50"></div>
       <div class="relative z-10 p-4 lg:p-8 max-w-7xl mx-auto" :class="auth.isAuthenticated ? 'mb-16 lg:mb-0' : ''">
         <RouterView v-slot="{ Component }">
           <transition 
@@ -200,6 +198,26 @@ onMounted(() => {
 
 .mobile-tab.active {
   @apply text-amber-400 bg-amber-400/10;
+}
+
+.circuit-trace {
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(226,184,87,0.35) 18%, transparent 40%),
+    linear-gradient(180deg, rgba(111,179,143,0.18), transparent);
+  -webkit-mask-image: repeating-linear-gradient(90deg, transparent 0 28px, #000 28px 30px, transparent 30px 58px);
+  mask-image: repeating-linear-gradient(90deg, transparent 0 28px, #000 28px 30px, transparent 30px 58px);
+  animation: trace-drift 8s ease-in-out infinite;
+}
+
+@keyframes trace-drift {
+  0%, 100% {
+    transform: translateX(-4%);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateX(4%);
+    opacity: 0.7;
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {

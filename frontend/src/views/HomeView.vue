@@ -93,20 +93,29 @@ const handleDelete = async (id: number) => {
 
 <template>
   <div class="space-y-6">
-    <header class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <p class="text-xs uppercase tracking-widest text-amber-300 font-bold mb-2">Game library</p>
-        <h1 class="text-3xl font-black text-stone-50">Archive</h1>
-        <p class="text-sm text-stone-500 mt-2">{{ romsStore.pagination.total }} indexed entries</p>
+    <header class="relative overflow-hidden rounded-lg border border-stone-700/70 bg-[#1a1a17]/85 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+      <div class="absolute inset-y-0 right-0 hidden w-1/3 sm:block opacity-70 pointer-events-none">
+        <div class="absolute right-10 top-5 h-20 w-28 rounded-lg border border-amber-300/20 bg-stone-950/40 shadow-[inset_0_-16px_30px_rgba(0,0,0,0.35)] rotate-6"></div>
+        <div class="absolute right-16 bottom-5 grid w-28 grid-cols-7 gap-1">
+          <span v-for="pin in 7" :key="pin" class="h-8 rounded-sm bg-amber-300/25"></span>
+        </div>
       </div>
 
-      <div class="glass-card p-3 w-full lg:w-[620px]">
-        <div class="flex flex-col sm:flex-row gap-3">
-          <div class="flex-1">
-            <SearchBar v-model="search" placeholder="Search title or filename" />
-          </div>
-          <div class="w-full sm:w-56">
-            <FilterBar v-model="selectedPlatform" />
+      <div class="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p class="text-xs uppercase tracking-widest text-amber-300 font-bold mb-2">Game library</p>
+          <h1 class="text-3xl font-black text-stone-50">Archive</h1>
+          <p class="text-sm text-stone-500 mt-2">{{ romsStore.pagination.total }} indexed entries</p>
+        </div>
+
+        <div class="glass-card p-3 w-full lg:w-[620px]">
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="flex-1">
+              <SearchBar v-model="search" placeholder="Search title or filename" />
+            </div>
+            <div class="w-full sm:w-56">
+              <FilterBar v-model="selectedPlatform" />
+            </div>
           </div>
         </div>
       </div>
@@ -114,10 +123,10 @@ const handleDelete = async (id: number) => {
 
     <div v-if="search || selectedPlatform" class="flex flex-wrap items-center gap-2 text-xs">
       <span class="text-stone-500 font-bold uppercase tracking-widest">Active filters</span>
-      <span v-if="search" class="px-2 py-1 rounded-md bg-stone-800 border border-stone-700 text-stone-200">
+      <span v-if="search" class="px-2 py-1 rounded-md bg-stone-800 border border-stone-700 text-stone-200 shadow-[inset_0_-6px_12px_rgba(0,0,0,0.18)]">
         Search: {{ search }}
       </span>
-      <span v-if="selectedPlatform" class="px-2 py-1 rounded-md bg-stone-800 border border-stone-700 text-amber-300">
+      <span v-if="selectedPlatform" class="px-2 py-1 rounded-md bg-stone-800 border border-stone-700 text-amber-300 shadow-[inset_0_-6px_12px_rgba(0,0,0,0.18)]">
         Platform: {{ selectedPlatform }}
       </span>
       <button
@@ -131,12 +140,14 @@ const handleDelete = async (id: number) => {
     <!-- Main Grid Section -->
     <section>
       <div v-if="romsStore.loading" class="flex flex-col items-center justify-center py-24 gap-4">
-        <div class="w-10 h-10 border-4 border-stone-700 border-t-amber-400 rounded-full animate-spin"></div>
+        <div class="chip-loader"></div>
         <p class="text-stone-500 font-bold uppercase tracking-widest text-xs">Loading archive</p>
       </div>
 
       <div v-else-if="romsStore.roms.length > 0" class="space-y-8">
-        <RomGrid :roms="romsStore.roms" @delete="handleDelete" />
+        <div class="library-stage">
+          <RomGrid :roms="romsStore.roms" @delete="handleDelete" />
+        </div>
 
         <!-- Pagination -->
         <div class="flex justify-center items-center gap-6 py-8">

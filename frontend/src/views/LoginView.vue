@@ -26,7 +26,7 @@ const handleLogin = async () => {
     <div class="w-full max-w-md space-y-8">
       <div class="text-center">
         <div class="inline-flex items-center justify-center w-24 h-24 mb-6">
-          <img src="@/assets/JARL_Logo.svg" alt="JARL Logo" class="w-full h-full object-contain" />
+          <img src="@/assets/Logo_white.svg" alt="JARL Logo" class="w-full h-full object-contain" />
         </div>
         <h1 class="text-4xl font-black text-white tracking-tighter italic">JARL</h1>
         <p class="mt-2 text-stone-500 font-bold uppercase tracking-widest text-xs">Secure Access Protocol</p>
