@@ -2,11 +2,11 @@
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.database import get_db_context
 from app.models import Rom
-from app.schemas import ErrorResponse, RomListResponse, RomResponse, StatsResponse
+from app.schemas import ErrorResponse, RomListResponse, RomResponse, RomUpdate, StatsResponse
 
 router = APIRouter()
 
@@ -140,6 +140,29 @@ async def get_rom(rom_id: int) -> RomResponse:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"ROM with id {rom_id} not found",
             )
+
+        return RomResponse.model_validate(rom)
+
+
+@router.patch("/roms/{rom_id}", response_model=RomResponse, responses={404: {"model": ErrorResponse}})
+async def update_rom(rom_id: int, payload: RomUpdate) -> RomResponse:
+    """Manually update ROM metadata."""
+    async with get_db_context() as session:
+        result = await session.execute(select(Rom).where(Rom.id == rom_id))
+        rom = result.scalar_one_or_none()
+
+        if rom is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"ROM with id {rom_id} not found",
+            )
+
+        update_data = payload.model_dump(exclude_unset=True)
+        if update_data:
+            await session.execute(update(Rom).where(Rom.id == rom_id).values(**update_data))
+            await session.commit()
+            result = await session.execute(select(Rom).where(Rom.id == rom_id))
+            rom = result.scalar_one()
 
         return RomResponse.model_validate(rom)
 

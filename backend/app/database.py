@@ -2,6 +2,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -56,10 +57,28 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+_NEW_COLUMNS: list[tuple[str, str, str]] = [
+    ("roms", "screenshots", "TEXT"),
+    ("roms", "rating", "REAL"),
+    ("roms", "languages", "TEXT"),
+    ("roms", "version", "VARCHAR(100)"),
+    ("roms", "release_date", "VARCHAR(20)"),
+]
+
+
+async def _migrate_new_columns(conn) -> None:
+    for table, col, col_type in _NEW_COLUMNS:
+        rows = await conn.execute(text(f"PRAGMA table_info({table})"))
+        existing = [r[1] for r in rows.fetchall()]
+        if col not in existing:
+            await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+
+
 async def init_db() -> None:
     """Initialize the database by creating all tables."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _migrate_new_columns(conn)
 
 
 async def close_db() -> None:

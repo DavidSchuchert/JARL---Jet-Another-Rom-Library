@@ -1,5 +1,6 @@
 """Async filesystem scanner for ROM file discovery."""
 import asyncio
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -110,12 +111,15 @@ async def process_rom_file(file_path: Path, job_id: int, full_scan: bool = False
 
         parsed = parse_filename(file_path.stem)
 
+        langs = parsed.get("languages")
         return Rom(
             path=str(file_path),
             filename=file_path.name,
             platform_slug=platform.slug,
             title=parsed.get("title", file_path.stem),
             region=parsed.get("region"),
+            languages=json.dumps(langs) if langs else None,
+            version=parsed.get("version"),
             size=size,
             mtime=mtime,
             hash_sha1=sha1_hash,
@@ -292,6 +296,8 @@ async def save_batch(roms: list[Rom], job_id: int) -> None:
                 existing.platform_slug = rom.platform_slug
                 existing.title = rom.title
                 existing.region = rom.region
+                existing.languages = rom.languages
+                existing.version = rom.version
                 existing.size = rom.size
                 existing.mtime = rom.mtime
                 existing.hash_sha1 = rom.hash_sha1

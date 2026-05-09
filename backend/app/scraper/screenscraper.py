@@ -222,14 +222,21 @@ class ScreenScraperScraper(BaseScraper):
             regions = game.get("regions", []) or []
             region = regions[0] if regions else None
 
-            # Year — try different date fields
+            # Year + full release date — try USA first, then EU, JP, worldwide
             dates = game.get("dates") or {}
             year = None
-            for region_key in ["fr", "eu", "us", "jp", "wor"]:
+            release_date = None
+            for region_key in ["us", "eu", "jp", "fr", "wor"]:
                 date_str = dates.get(region_key) or dates.get(f"date_{region_key}")
-                if date_str:
+                if date_str and str(date_str).strip():
+                    date_str = str(date_str).strip()
                     try:
-                        year = int(str(date_str)[:4])
+                        year = int(date_str[:4])
+                        # Try to get full date (YYYY-MM-DD)
+                        if len(date_str) >= 10 and date_str[4] in ("-", "/"):
+                            release_date = date_str[:10].replace("/", "-")
+                        else:
+                            release_date = None
                         break
                     except ValueError:
                         continue
@@ -241,9 +248,32 @@ class ScreenScraperScraper(BaseScraper):
             publisher = game.get("editeur")
             developer = game.get("developpeur")
 
-            # Genre — v2 uses genres with nested noms structure
+            # Genre
             genres_list = game.get("genres", []) or []
             genre = self._pick_best_genre(genres_list)
+
+            # Rating — ScreenScraper uses 0-20 scale in "note.ss"
+            rating = None
+            note = game.get("note") or {}
+            if isinstance(note, dict):
+                ss_val = note.get("ss")
+                if ss_val is not None:
+                    try:
+                        rating = round(float(str(ss_val)) * 5, 1)  # convert 0-20 → 0-100
+                    except (ValueError, TypeError):
+                        pass
+            elif note:
+                try:
+                    rating = round(float(str(note)) * 5, 1)
+                except (ValueError, TypeError):
+                    pass
+
+            # ScreenScraper game ID
+            screenscraper_id = None
+            try:
+                screenscraper_id = int(game.get("id", 0)) or None
+            except (TypeError, ValueError):
+                pass
 
             # Media — cover and screenshots
             medias = game.get("medias", []) or []
@@ -265,13 +295,16 @@ class ScreenScraperScraper(BaseScraper):
                 title=title or game.get("nom"),
                 description=description,
                 year=year,
+                release_date=release_date,
                 publisher=publisher,
                 developer=developer,
                 genre=genre,
                 players=players,
                 region=region,
+                rating=rating,
                 cover_url=cover_url,
                 screenshot_urls=screenshot_urls,
+                screenscraper_id=screenscraper_id,
                 success=True,
             )
 

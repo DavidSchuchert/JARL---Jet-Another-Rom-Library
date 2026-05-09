@@ -7,18 +7,37 @@ export interface Rom {
   platform_slug: string
   region: string | null
   year: number | null
+  release_date: string | null
   genre: string | null
   players: string | null
   developer: string | null
   description: string | null
   publisher: string | null
   cover_url: string | null
+  screenshots: string | null    // JSON string: list of local paths
+  rating: number | null         // 0-100
+  languages: string | null      // JSON string: list of language names
+  version: string | null
   size: number
   path: string
   hash_sha1: string | null
   scrape_status: string
   created_at: string
   updated_at: string
+}
+
+export interface RomUpdatePayload {
+  title?: string
+  description?: string
+  year?: number | null
+  release_date?: string | null
+  developer?: string | null
+  publisher?: string | null
+  genre?: string | null
+  players?: string | null
+  region?: string | null
+  cover_url?: string | null
+  rating?: number | null
 }
 
 export interface RomsResponse {
@@ -46,6 +65,11 @@ export const getRoms = async (params: GetRomsParams = {}): Promise<RomsResponse>
 
 export const getRom = async (id: number): Promise<Rom> => {
   const response = await api.get<Rom>(`/roms/${id}`)
+  return response.data
+}
+
+export const updateRom = async (id: number, payload: RomUpdatePayload): Promise<Rom> => {
+  const response = await api.patch<Rom>(`/roms/${id}`, payload)
   return response.data
 }
 

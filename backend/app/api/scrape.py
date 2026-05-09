@@ -107,8 +107,10 @@ async def get_scrape_status():
         "failed": progress.failed,
         "skipped": progress.skipped,
         "current_file": progress.current,
+        "current_title": progress.current_title,
+        "current_cover": progress.current_cover,
         "percent": round(progress.percent, 2),
-        "errors": progress.errors[-10:] if progress.errors else [], # last 10 errors
+        "errors": progress.errors[-10:] if progress.errors else [],
     }
 
 @router.get("/scrape/test-auth")

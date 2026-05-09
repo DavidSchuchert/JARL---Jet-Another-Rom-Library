@@ -42,41 +42,20 @@ onMounted(() => {
 
 const syncQuery = () => {
   const query = { ...route.query }
-  if (search.value) {
-    query.search = search.value
-  } else {
-    delete query.search
-  }
-  if (selectedPlatform.value) {
-    query.platform = selectedPlatform.value
-  } else {
-    delete query.platform
-  }
+  if (search.value) { query.search = search.value } else { delete query.search }
+  if (selectedPlatform.value) { query.platform = selectedPlatform.value } else { delete query.platform }
   router.replace({ query })
 }
 
-watch(search, () => {
-  debouncedFetch()
-})
-
-watch(selectedPlatform, () => {
-  romsStore.setPage(1)
-  syncQuery()
-  fetchRoms()
-})
-
+watch(search, () => { debouncedFetch() })
+watch(selectedPlatform, () => { romsStore.setPage(1); syncQuery(); fetchRoms() })
 watch(() => route.query.platform, () => {
-  const nextPlatform = getRoutePlatform()
-  if (selectedPlatform.value !== nextPlatform) {
-    selectedPlatform.value = nextPlatform
-  }
+  const next = getRoutePlatform()
+  if (selectedPlatform.value !== next) selectedPlatform.value = next
 })
-
 watch(() => route.query.search, () => {
-  const nextSearch = typeof route.query.search === 'string' ? route.query.search : ''
-  if (search.value !== nextSearch) {
-    search.value = nextSearch
-  }
+  const next = typeof route.query.search === 'string' ? route.query.search : ''
+  if (search.value !== next) search.value = next
 })
 
 const handlePageChange = (page: number) => {
@@ -85,7 +64,7 @@ const handlePageChange = (page: number) => {
 }
 
 const handleDelete = async (id: number) => {
-  if (confirm('Are you sure you want to delete this ROM?')) {
+  if (confirm('Delete this ROM from the archive?')) {
     await romsStore.deleteRom(id)
   }
 }
@@ -93,27 +72,36 @@ const handleDelete = async (id: number) => {
 
 <template>
   <div class="space-y-6">
-    <header class="relative overflow-hidden rounded-lg border border-stone-700/70 bg-[#1a1a17]/85 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
-      <div class="absolute inset-y-0 right-0 hidden w-1/3 sm:block opacity-70 pointer-events-none">
-        <div class="absolute right-10 top-5 h-20 w-28 rounded-lg border border-amber-300/20 bg-stone-950/40 shadow-[inset_0_-16px_30px_rgba(0,0,0,0.35)] rotate-6"></div>
+
+    <!-- Header -->
+    <header class="relative overflow-hidden rounded-lg p-5" style="background: rgba(11,9,22,0.9); border: 1px solid rgba(255,184,0,0.12); box-shadow: 0 18px 50px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,184,0,0.06);">
+      <!-- Decorative cartridge pins -->
+      <div class="absolute inset-y-0 right-0 hidden w-1/3 sm:block opacity-50 pointer-events-none">
+        <div class="absolute right-10 top-5 h-20 w-28 rounded-lg rotate-6"
+             style="border: 1px solid rgba(255,184,0,0.2); background: rgba(255,184,0,0.03)"></div>
         <div class="absolute right-16 bottom-5 grid w-28 grid-cols-7 gap-1">
-          <span v-for="pin in 7" :key="pin" class="h-8 rounded-sm bg-amber-300/25"></span>
+          <span v-for="pin in 7" :key="pin" class="h-8 rounded-sm"
+                :style="{ background: `rgba(255,184,0,${0.15 + pin * 0.03})`, boxShadow: `0 0 4px rgba(255,184,0,0.2)` }"></span>
         </div>
       </div>
 
       <div class="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p class="text-xs uppercase tracking-widest text-amber-300 font-bold mb-2">Game library</p>
-          <h1 class="text-3xl font-black text-stone-50">Archive</h1>
-          <p class="text-sm text-stone-500 mt-2">{{ romsStore.pagination.total }} indexed entries</p>
+          <p style="font-family: 'Orbitron', sans-serif; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.18em; color: var(--neon-cyan); text-transform: uppercase; text-shadow: 0 0 8px rgba(255,184,0,0.5); margin-bottom: 8px;">
+            &#9658; Game Library
+          </p>
+          <h1 style="font-family: 'Press Start 2P', monospace; font-size: 1.4rem; color: var(--text-main); line-height: 1.4;">ARCHIVE</h1>
+          <p class="mt-2" style="font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; color: var(--text-muted);">
+            {{ romsStore.pagination.total }} indexed entries
+          </p>
         </div>
 
-        <div class="glass-card p-3 w-full lg:w-[620px]">
+        <div class="w-full lg:w-[600px] rounded-md p-3" style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,184,0,0.08);">
           <div class="flex flex-col sm:flex-row gap-3">
             <div class="flex-1">
               <SearchBar v-model="search" placeholder="Search title or filename" />
             </div>
-            <div class="w-full sm:w-56">
+            <div class="w-full sm:w-52">
               <FilterBar v-model="selectedPlatform" />
             </div>
           </div>
@@ -121,37 +109,39 @@ const handleDelete = async (id: number) => {
       </div>
     </header>
 
+    <!-- Active Filters -->
     <div v-if="search || selectedPlatform" class="flex flex-wrap items-center gap-2 text-xs">
-      <span class="text-stone-500 font-bold uppercase tracking-widest">Active filters</span>
-      <span v-if="search" class="px-2 py-1 rounded-md bg-stone-800 border border-stone-700 text-stone-200 shadow-[inset_0_-6px_12px_rgba(0,0,0,0.18)]">
-        Search: {{ search }}
+      <span style="font-family: 'Orbitron', sans-serif; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-muted); text-transform: uppercase;">Filters</span>
+      <span v-if="search" class="px-2 py-1 rounded" style="background: rgba(255,184,0,0.08); border: 1px solid rgba(255,184,0,0.2); color: var(--neon-cyan); font-family: 'Share Tech Mono', monospace;">
+        "{{ search }}"
       </span>
-      <span v-if="selectedPlatform" class="px-2 py-1 rounded-md bg-stone-800 border border-stone-700 text-amber-300 shadow-[inset_0_-6px_12px_rgba(0,0,0,0.18)]">
-        Platform: {{ selectedPlatform }}
+      <span v-if="selectedPlatform" class="px-2 py-1 rounded" style="background: rgba(0,200,160,0.08); border: 1px solid rgba(0,200,160,0.2); color: var(--neon-purple); font-family: 'Share Tech Mono', monospace;">
+        {{ selectedPlatform }}
       </span>
-      <button
-        class="px-2 py-1 rounded-md text-stone-400 hover:text-stone-100 hover:bg-stone-800"
-        @click="search = ''; selectedPlatform = ''"
-      >
-        Clear
+      <button @click="search = ''; selectedPlatform = ''" class="px-2 py-1 rounded transition-all"
+              style="color: var(--text-muted); font-family: 'Orbitron', sans-serif; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;"
+              onmouseenter="this.style.color='var(--neon-pink)'" onmouseleave="this.style.color='var(--text-muted)'">
+        [CLEAR]
       </button>
     </div>
 
-    <!-- Main Grid Section -->
+    <!-- Grid Section -->
     <section>
-      <div v-if="romsStore.loading" class="flex flex-col items-center justify-center py-24 gap-4">
+      <!-- Loading -->
+      <div v-if="romsStore.loading" class="flex flex-col items-center justify-center py-24 gap-5">
         <div class="chip-loader"></div>
-        <p class="text-stone-500 font-bold uppercase tracking-widest text-xs">Loading archive</p>
+        <p style="font-family: 'Orbitron', sans-serif; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase;">Loading Archive</p>
       </div>
 
+      <!-- Grid -->
       <div v-else-if="romsStore.roms.length > 0" class="space-y-8">
         <div class="library-stage">
           <RomGrid :roms="romsStore.roms" @delete="handleDelete" />
         </div>
 
         <!-- Pagination -->
-        <div class="flex justify-center items-center gap-6 py-8">
-          <button 
+        <div class="flex justify-center items-center gap-6 py-6">
+          <button
             @click="handlePageChange(romsStore.pagination.page - 1)"
             :disabled="romsStore.pagination.page === 1"
             class="btn-nebula-secondary !px-3"
@@ -160,17 +150,19 @@ const handleDelete = async (id: number) => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          
+
           <div class="flex items-center gap-2">
-            <span class="text-xs text-stone-500 font-bold uppercase">Page</span>
-            <span class="px-3 py-1 glass-card text-stone-100 font-bold">{{ romsStore.pagination.page }}</span>
-            <span class="text-xs text-stone-500 font-bold uppercase">of {{ romsStore.pagination.totalPages }}</span>
+            <span style="font-family: 'Orbitron', sans-serif; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-muted); text-transform: uppercase;">Page</span>
+            <span class="px-3 py-1.5 rounded" style="font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; color: var(--neon-cyan); background: rgba(255,184,0,0.07); border: 1px solid rgba(255,184,0,0.2);">
+              {{ romsStore.pagination.page }}
+            </span>
+            <span style="font-family: 'Orbitron', sans-serif; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-muted); text-transform: uppercase;">of {{ romsStore.pagination.totalPages }}</span>
           </div>
 
-          <button 
+          <button
             @click="handlePageChange(romsStore.pagination.page + 1)"
             :disabled="romsStore.pagination.page === romsStore.pagination.totalPages"
-            class="btn-nebula-secondary !px-4"
+            class="btn-nebula-secondary !px-3"
           >
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -179,14 +171,16 @@ const handleDelete = async (id: number) => {
         </div>
       </div>
 
-      <div v-else class="glass-card p-16 text-center border-dashed border-white/10">
-        <div class="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-600">
-          <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <!-- Empty State -->
+      <div v-else class="rounded-lg p-16 text-center" style="background: rgba(11,9,22,0.7); border: 1px dashed rgba(255,184,0,0.1);">
+        <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6"
+             style="background: rgba(255,184,0,0.05); border: 1px solid rgba(255,184,0,0.1);">
+          <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: rgba(255,184,0,0.3)">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H4a2 2 0 00-2 2v7m18 0v5a2 2 0 01-2 2H4a2 2 0 01-2-2v-5m18 0l-2 3m-16-3l2 3m5 5l1-1m0 0l1 1m-1-1l-1-1m1 1l1-1" />
           </svg>
         </div>
-        <h2 class="text-2xl font-bold text-stone-50 mb-2">No games found</h2>
-        <p class="text-stone-500 mb-8">Adjust search or filters, or run a scan.</p>
+        <h2 style="font-family: 'Press Start 2P', monospace; font-size: 0.9rem; color: var(--text-main); margin-bottom: 10px;">NO GAMES FOUND</h2>
+        <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 2rem;">Adjust search or run a scan to index your library.</p>
         <RouterLink to="/scan" class="btn-nebula-primary inline-flex">Open Jobs</RouterLink>
       </div>
     </section>
