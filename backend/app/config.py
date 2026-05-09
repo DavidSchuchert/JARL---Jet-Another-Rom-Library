@@ -1,10 +1,14 @@
 """Application configuration using pydantic-settings."""
+import logging
+import secrets
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_config_logger = logging.getLogger(__name__)
 
 
 class DatabaseSettings(BaseSettings):
@@ -74,6 +78,17 @@ class AppSettings(BaseSettings):
     version: str = Field(default="1.0.0", description="Application version")
     debug: bool = Field(default=False, description="Debug mode")
     secret_key: str = Field(default="change-this-in-production", description="Secret key")
+
+    @model_validator(mode="after")
+    def _ensure_secret_key(self) -> "AppSettings":
+        if self.secret_key == "change-this-in-production":
+            generated = secrets.token_hex(32)
+            object.__setattr__(self, "secret_key", generated)
+            _config_logger.warning(
+                "SECRET_KEY is not set — using a randomly generated ephemeral key. "
+                "Set SECRET_KEY in your environment to keep sessions valid across restarts."
+            )
+        return self
 
     auth: AuthSettings = Field(default_factory=AuthSettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
