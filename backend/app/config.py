@@ -39,6 +39,9 @@ class ScraperSettings(BaseSettings):
 
     username: Optional[str] = Field(default=None, description="ScreenScraper username")
     password: Optional[str] = Field(default=None, description="ScreenScraper password")
+    ss_dev_id: str = Field(default="Greenfreeze", description="ScreenScraper developer ID")
+    ss_dev_password: str = Field(default="vC0ibQRZDWp", description="ScreenScraper developer password")
+    ss_softname: str = Field(default="jarl", description="ScreenScraper softname")
     api_url: str = Field(
         default="https://www.screenscraper.fr/api2",
         description="ScreenScraper API URL",
