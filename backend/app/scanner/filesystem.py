@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 import aiofiles
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
 
 from app.config import get_settings
@@ -270,13 +271,31 @@ async def scan_directory(job_id: int, full_scan: bool = False) -> None:
             job.current_file = None
             await session.commit()
 
+    # Remove orphaned DB entries — ROMs whose file no longer exists on disk
+    async with get_db_context() as session:
+        result = await session.execute(select(Rom.id, Rom.path))
+        all_roms = result.all()
+
+    orphaned_ids = [rom_id for rom_id, rom_path in all_roms if not Path(rom_path).exists()]
+    if orphaned_ids:
+        async with get_db_context() as session:
+            await session.execute(sa_delete(Rom).where(Rom.id.in_(orphaned_ids)))
+            await session.commit()
+        record_scan_event(
+            job_id,
+            f"Removed {len(orphaned_ids)} orphaned ROM(s) from library",
+            event_type="info",
+            scanned_files=processed,
+        )
+        logger.info(f"Removed {len(orphaned_ids)} orphaned ROMs from DB")
+
     record_scan_event(
         job_id,
         f"Scan complete. Processed {processed} files.",
         event_type="success",
         scanned_files=processed,
     )
-    
+
     logger.info(f"Scan job {job_id} completed. Processed {processed} files.")
 
 
