@@ -15,13 +15,19 @@ JARL scans your ROM directories, identifies games by filename, computes xxHash f
 - **Filesystem Scanner** — Recursively scans ROM directories, parses filenames, detects platforms, computes xxHash/SHA1 for deduplication
 - **ScreenScraper Integration** — Hash-based and name-based lookup via ScreenScraper.fr API v2
 - **IGDB Fallback** — Name-based search via Twitch OAuth (IGDB has no ROM hash lookup)
+- **Local Media Storage** — Cover art and screenshots downloaded and served locally (no broken external links)
+- **Rich Metadata** — Rating (0–100), genre, region, publisher, developer, languages, release date, version
 - **Deduplication** — xxHash (all files) + SHA1 (files ≤ hash limit) for duplicate detection
 - **Smart Skipping** — Skips files unchanged since last scan (path + size + mtime check)
+- **Orphan Cleanup** — Automatically removes DB entries for ROMs deleted from disk
 - **Progress Tracking** — Live scan events via polling (`GET /api/scan/events/{job_id}`)
+- **Live Scrape Preview** — Real-time cover thumbnail and title during batch scraping
 - **Batch Scraping** — Background metadata enrichment with retry, concurrency, and cancellation
+- **Manual Metadata Edit** — PATCH any ROM's metadata via API or the built-in edit modal
 - **JWT Authentication** — All API endpoints (except `/auth/*` and `/health`) require a valid Bearer token
 - **REST API** — FastAPI with Swagger/ReDoc at `/api/docs`
-- **Vue.js Frontend** — Dark-themed UI with platform browser, ROM grid, and search
+- **Vue.js Frontend** — Retro-arcade dark UI with platform browser, ROM grid, detail pages, and search
+- **Mobile-Ready** — Responsive layout with bottom tab bar and hamburger menu
 - **Docker-Ready** — Single `docker compose up`
 
 ---
@@ -55,8 +61,8 @@ http://localhost ──────────► ─────────�
 ### 1. Clone & Configure
 
 ```bash
-git clone https://github.com/your-org/jarl.git
-cd jarl
+git clone https://github.com/DavidSchuchert/JARL---Jet-Another-Rom-Library.git
+cd JARL---Jet-Another-Rom-Library
 
 cp docker/.env.example docker/.env
 # Edit docker/.env — set ROM_PATH, AUTH__USERNAME, AUTH__PASSWORD
@@ -168,6 +174,9 @@ The scanner walks all subdirectories. Only the **file extension** and **path seg
 | `SCANNER__FILE_TIMEOUT_SECONDS`| `30`               | Max seconds per file before skipping |
 | `SCRAPER__USERNAME`           | —                  | ScreenScraper account username       |
 | `SCRAPER__PASSWORD`           | —                  | ScreenScraper account password       |
+| `SCRAPER__SS_DEV_ID`          | `Greenfreeze`      | ScreenScraper developer ID (optional) |
+| `SCRAPER__SS_DEV_PASSWORD`    | —                  | ScreenScraper developer password (optional) |
+| `SCRAPER__SS_SOFTNAME`        | `jarl`             | ScreenScraper softname               |
 | `SCRAPER__IGDB_CLIENT_ID`      | —                  | IGDB OAuth client ID (from dev.twitch.tv) |
 | `SCRAPER__IGDB_CLIENT_SECRET`  | —                  | IGDB OAuth client secret              |
 | `SCRAPER__RATE_LIMIT`         | `2.0`              | ScreenScraper: min seconds between requests |
@@ -201,10 +210,11 @@ GET /api/health
 ### ROMs
 
 ```
-GET  /api/roms?page=1&page_size=50&platform=nes&search=zelda
-GET  /api/roms/{id}
-GET  /api/roms/stats
-DELETE /api/roms/{id}
+GET    /api/roms?page=1&page_size=50&platform=nes&search=zelda
+GET    /api/roms/{id}
+GET    /api/roms/stats
+PATCH  /api/roms/{id}          # Update metadata (title, description, year, rating, …)
+DELETE /api/roms/{id}          # Also deletes local cover / screenshot files
 ```
 
 ### Platforms
@@ -337,6 +347,14 @@ See [docs/platforms.md](docs/platforms.md) for the full list.
 
 ---
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local dev setup, project structure, and contribution guidelines.
+
+Bug reports and feature requests → [GitHub Issues](https://github.com/DavidSchuchert/JARL---Jet-Another-Rom-Library/issues).
+
+---
+
 ## License
 
-MIT
+[MIT](LICENSE) © 2024 David Schuchert

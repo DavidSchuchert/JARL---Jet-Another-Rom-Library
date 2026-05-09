@@ -1,4 +1,6 @@
 """ROMs API endpoints."""
+import json
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -7,6 +9,7 @@ from sqlalchemy import func, select, update
 from app.database import get_db_context
 from app.models import Rom
 from app.schemas import ErrorResponse, RomListResponse, RomResponse, RomUpdate, StatsResponse
+from app.utils.images import COVERS_DIR, SCREENSHOTS_DIR
 
 router = APIRouter()
 
@@ -188,4 +191,16 @@ async def delete_rom(rom_id: int) -> None:
                 detail=f"ROM with id {rom_id} not found",
             )
 
+        # Clean up local image files
+        if rom.cover_url and rom.cover_url.startswith("/media/covers/"):
+            (COVERS_DIR / Path(rom.cover_url).name).unlink(missing_ok=True)
+        if rom.screenshots:
+            try:
+                for ss_path in json.loads(rom.screenshots):
+                    if ss_path.startswith("/media/screenshots/"):
+                        (SCREENSHOTS_DIR / Path(ss_path).name).unlink(missing_ok=True)
+            except Exception:
+                pass
+
         await session.delete(rom)
+        await session.commit()
