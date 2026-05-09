@@ -52,15 +52,19 @@ class RomCreate(RomBase):
 
 
 class RomUpdate(BaseModel):
-    """Schema for updating a ROM."""
+    """Schema for updating a ROM (manual edit)."""
 
     title: Optional[str] = Field(None, max_length=500)
     description: Optional[str] = None
     year: Optional[int] = None
+    release_date: Optional[str] = Field(None, max_length=20)
     publisher: Optional[str] = Field(None, max_length=255)
+    developer: Optional[str] = Field(None, max_length=255)
     genre: Optional[str] = Field(None, max_length=100)
+    players: Optional[str] = Field(None, max_length=50)
     region: Optional[str] = Field(None, max_length=100)
     cover_url: Optional[str] = Field(None, max_length=1000)
+    rating: Optional[float] = Field(None, ge=0, le=100)
     scrape_status: Optional[str] = Field(None, max_length=20)
 
 
@@ -76,6 +80,11 @@ class RomResponse(RomBase):
     hash_sha1: Optional[str] = None
     hash_xxhash: Optional[str] = None
     cover_url: Optional[str] = None
+    screenshots: Optional[str] = None   # JSON list of local paths
+    rating: Optional[float] = None
+    languages: Optional[str] = None     # JSON list of language names
+    version: Optional[str] = None
+    release_date: Optional[str] = None
     scrape_status: str
     created_at: datetime
     updated_at: datetime

@@ -8,6 +8,8 @@ export interface ScrapeStatus {
   failed: number
   skipped: number
   current_file: string | null
+  current_title: string | null
+  current_cover: string | null
   percent: number
   errors: string[]
 }

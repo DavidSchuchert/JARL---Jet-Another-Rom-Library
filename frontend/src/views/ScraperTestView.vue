@@ -30,97 +30,98 @@ const runTest = async () => {
 <template>
   <div class="space-y-10">
     <header>
-      <h1 class="text-4xl font-black text-white tracking-tighter mb-2 italic">DIAGNOSTICS</h1>
-      <p class="text-slate-500 font-bold uppercase tracking-widest text-xs">Verify external uplink connections</p>
+      <p style="font-family: 'Orbitron', sans-serif; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.18em; color: var(--neon-cyan); text-transform: uppercase; text-shadow: 0 0 8px rgba(255,184,0,0.5); margin-bottom: 8px;">
+        &#9658; External Uplinks
+      </p>
+      <h1 style="font-family: 'Press Start 2P', monospace; font-size: 1.2rem; color: var(--text-main); line-height: 1.5;">DIAGNOSTICS</h1>
+      <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;">Verify external scraper API connections.</p>
     </header>
 
     <div class="flex justify-center">
-      <button 
-        @click="runTest" 
-        :disabled="loading"
-        class="btn-nebula-primary !px-12 !py-4 text-lg"
-      >
-        <svg v-if="loading" class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <button @click="runTest" :disabled="loading" class="btn-nebula-primary !px-10 !py-3.5" style="font-size: 0.7rem;">
+        <svg v-if="loading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        {{ loading ? 'Synchronizing...' : 'Start Connection Test' }}
+        {{ loading ? 'SYNCHRONIZING...' : 'RUN CONNECTION TEST' }}
       </button>
     </div>
 
-    <div v-if="results" class="grid md:grid-cols-2 gap-8">
-      <!-- ScreenScraper Result -->
-      <div class="glass-card flex flex-col group hover:border-nebula-purple/30 transition-all duration-500">
-        <div class="p-6 bg-white/5 border-b border-white/5 flex items-center justify-between">
-          <h2 class="text-xl font-black text-white tracking-tight">ScreenScraper.fr</h2>
-          <div 
-            class="w-3 h-3 rounded-full shadow-[0_0_10px]"
-            :class="results.screenscraper.status === 'success' ? 'bg-green-500 shadow-green-500/50' : 'bg-red-500 shadow-red-500/50'"
-          ></div>
+    <div v-if="results" class="grid md:grid-cols-2 gap-6">
+      <!-- ScreenScraper -->
+      <div class="glass-card flex flex-col transition-all duration-300"
+           :style="results.screenscraper.status === 'success'
+             ? 'border-color: rgba(0,255,136,0.2); box-shadow: 0 0 20px rgba(0,255,136,0.06)'
+             : 'border-color: rgba(255,27,141,0.2); box-shadow: 0 0 20px rgba(255,27,141,0.06)'">
+        <div class="p-5 flex items-center justify-between" style="background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.04);">
+          <h2 style="font-family: 'Orbitron', sans-serif; font-size: 0.8rem; font-weight: 800; color: var(--text-main); letter-spacing: 0.04em;">ScreenScraper.fr</h2>
+          <div class="w-3 h-3 rounded-full"
+               :style="results.screenscraper.status === 'success'
+                 ? 'background: var(--neon-green); box-shadow: 0 0 10px rgba(0,255,136,0.7)'
+                 : 'background: var(--neon-pink); box-shadow: 0 0 10px rgba(255,27,141,0.7)'"></div>
         </div>
-
-        <div class="p-8 space-y-6 flex-1">
+        <div class="p-6 space-y-5 flex-1">
           <div class="space-y-2">
-            <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest">Uplink Message</p>
-            <p class="text-slate-300 font-mono text-sm leading-relaxed p-4 bg-black/40 rounded-xl border border-white/5">
+            <p style="font-family: 'Orbitron', sans-serif; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase;">Uplink Message</p>
+            <p class="p-4 rounded-md" style="font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: var(--text-muted); line-height: 1.6; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,184,0,0.05);">
               {{ results.screenscraper.message }}
             </p>
           </div>
-
           <div v-if="results.screenscraper.user" class="space-y-1">
-            <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest">User ID</p>
-            <p class="text-white font-bold">{{ results.screenscraper.user }}</p>
+            <p style="font-family: 'Orbitron', sans-serif; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase;">User ID</p>
+            <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; color: var(--neon-green); font-weight: bold;">{{ results.screenscraper.user }}</p>
           </div>
-
-          <div v-if="results.screenscraper.details" class="space-y-2 mt-4">
-            <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest">Raw Response</p>
-            <div class="bg-black/60 p-4 rounded-xl text-[10px] font-mono text-nebula-purple/80 overflow-auto max-h-48 custom-scrollbar">
-              <pre>{{ JSON.stringify(results.screenscraper.details.response, null, 2) }}</pre>
+          <div v-if="results.screenscraper.details" class="space-y-2">
+            <p style="font-family: 'Orbitron', sans-serif; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase;">Raw Response</p>
+            <div class="p-4 rounded-md overflow-auto max-h-48 custom-scrollbar" style="background: rgba(0,0,0,0.7); border: 1px solid rgba(191,95,255,0.12);">
+              <pre style="font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: rgba(191,95,255,0.7);">{{ JSON.stringify(results.screenscraper.details.response, null, 2) }}</pre>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- IGDB Result -->
-      <div class="glass-card flex flex-col group hover:border-nebula-blue/30 transition-all duration-500">
-        <div class="p-6 bg-white/5 border-b border-white/5 flex items-center justify-between">
-          <h2 class="text-xl font-black text-white tracking-tight">IGDB (Twitch)</h2>
-          <div 
-            class="w-3 h-3 rounded-full shadow-[0_0_10px]"
-            :class="results.igdb.status === 'success' ? 'bg-green-500 shadow-green-500/50' : 'bg-red-500 shadow-red-500/50'"
-          ></div>
+      <!-- IGDB -->
+      <div class="glass-card flex flex-col transition-all duration-300"
+           :style="results.igdb.status === 'success'
+             ? 'border-color: rgba(255,184,0,0.2); box-shadow: 0 0 20px rgba(255,184,0,0.06)'
+             : 'border-color: rgba(255,27,141,0.2); box-shadow: 0 0 20px rgba(255,27,141,0.06)'">
+        <div class="p-5 flex items-center justify-between" style="background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.04);">
+          <h2 style="font-family: 'Orbitron', sans-serif; font-size: 0.8rem; font-weight: 800; color: var(--text-main); letter-spacing: 0.04em;">IGDB (Twitch)</h2>
+          <div class="w-3 h-3 rounded-full"
+               :style="results.igdb.status === 'success'
+                 ? 'background: var(--neon-cyan); box-shadow: 0 0 10px rgba(255,184,0,0.7)'
+                 : 'background: var(--neon-pink); box-shadow: 0 0 10px rgba(255,27,141,0.7)'"></div>
         </div>
-
-        <div class="p-8 space-y-6 flex-1">
+        <div class="p-6 space-y-5 flex-1">
           <div class="space-y-2">
-            <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest">Uplink Message</p>
-            <p class="text-slate-300 font-mono text-sm leading-relaxed p-4 bg-black/40 rounded-xl border border-white/5">
+            <p style="font-family: 'Orbitron', sans-serif; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase;">Uplink Message</p>
+            <p class="p-4 rounded-md" style="font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: var(--text-muted); line-height: 1.6; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,184,0,0.05);">
               {{ results.igdb.message }}
             </p>
           </div>
-
           <div v-if="results.igdb.client_id" class="space-y-1">
-            <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest">Client Key</p>
-            <p class="text-white font-bold font-mono">{{ results.igdb.client_id }}</p>
+            <p style="font-family: 'Orbitron', sans-serif; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase;">Client Key</p>
+            <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; color: var(--neon-cyan); font-weight: bold;">{{ results.igdb.client_id }}</p>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-if="results" class="glass-card p-8 border-dashed border-white/10 bg-transparent">
-      <h3 class="text-sm font-black text-white uppercase tracking-[0.2em] mb-4">Fix Protocol</h3>
+    <!-- Fix Protocol -->
+    <div v-if="results" class="rounded-lg p-6" style="background: transparent; border: 1px dashed rgba(255,184,0,0.1);">
+      <h3 style="font-family: 'Orbitron', sans-serif; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.16em; color: var(--text-main); text-transform: uppercase; margin-bottom: 16px;">Fix Protocol</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="space-y-2">
-          <p class="text-[10px] text-red-500 uppercase font-black tracking-widest">Error 403 / 401</p>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            Verify credentials in <code class="text-white bg-white/10 px-1.5 py-0.5 rounded">docker/.env</code>. 
-            Ensure no trailing spaces or special shell characters are unmasked.
+          <p style="font-family: 'Orbitron', sans-serif; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em; color: var(--neon-pink); text-transform: uppercase;">Error 403 / 401</p>
+          <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: var(--text-muted); line-height: 1.7;">
+            Verify credentials in <code style="color: var(--text-main); background: rgba(255,184,0,0.06); padding: 2px 6px; border-radius: 3px;">docker/.env</code>.
+            Check for trailing spaces or special characters.
           </p>
         </div>
         <div class="space-y-2">
-          <p class="text-[10px] text-nebula-blue uppercase font-black tracking-widest">Re-Sync</p>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            After editing the <code class="text-white">.env</code>, always execute: <br/>
-            <code class="text-nebula-blue font-mono">docker compose up -d</code>
+          <p style="font-family: 'Orbitron', sans-serif; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em; color: var(--neon-cyan); text-transform: uppercase;">Re-Sync</p>
+          <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: var(--text-muted); line-height: 1.7;">
+            After editing <code style="color: var(--text-main); background: rgba(255,184,0,0.06); padding: 2px 6px; border-radius: 3px;">.env</code>, always run:<br/>
+            <code style="color: var(--neon-cyan); font-size: 0.78rem;">docker compose up -d</code>
           </p>
         </div>
       </div>

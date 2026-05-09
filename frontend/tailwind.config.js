@@ -10,34 +10,32 @@ export default {
         'xs': '480px',
       },
       colors: {
-        nebula: {
-          base: '#0b0e14',
-          surface: 'rgba(22, 27, 34, 0.6)',
-          purple: '#8b5cf6',
-          blue: '#3b82f6',
-          dark: '#161b22',
-        },
-        primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-          950: '#082f49'
+        arcade: {
+          base:    '#06040f',
+          surface: '#0c0a1c',
+          card:    '#110e22',
+          cyan:    '#00f5ff',
+          pink:    '#ff1b8d',
+          yellow:  '#ffe500',
+          green:   '#00ff88',
+          purple:  '#bf5fff',
+          orange:  '#ff6b1a',
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace']
+        sans:     ['Inter', 'system-ui', 'sans-serif'],
+        pixel:    ['"Press Start 2P"', 'monospace'],
+        orbitron: ['Orbitron', 'sans-serif'],
+        mono:     ['"Share Tech Mono"', 'monospace'],
       },
       animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-      }
+        'pulse-slow':  'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'neon-pulse':  'neon-pulse 2.5s ease-in-out infinite',
+        'blink':       'blink 1s step-end infinite',
+        'rgb-shift':   'rgb-shift 4s ease-in-out infinite',
+        'glitch':      'glitch 0.4s ease-in-out',
+        'scanline':    'scanline-move 6s linear infinite',
+      },
     }
   },
   plugins: []

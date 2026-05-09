@@ -1,5 +1,6 @@
 """Batch scraper with concurrency control, retry, and progress tracking."""
 import asyncio
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -15,6 +16,7 @@ from app.scraper.base import BaseScraper, ScraperResult
 from app.scraper.screenscraper import ScreenScraperScraper
 from app.scraper.igdb import IGDBScraper
 from app.config import get_settings
+from app.utils.images import download_cover, download_screenshots
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,8 @@ class BatchProgress:
     failed: int = 0
     skipped: int = 0
     current: Optional[str] = None
+    current_title: Optional[str] = None
+    current_cover: Optional[str] = None  # remote cover URL for live preview
     errors: list[str] = field(default_factory=list)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
@@ -159,6 +163,8 @@ class BatchScraper:
             return
 
         self._progress.current = rom.filename
+        self._progress.current_title = rom.title
+        self._progress.current_cover = None
         platform = rom.platform_slug
         query = rom.title if rom.title else rom.filename
         
@@ -188,18 +194,41 @@ class BatchScraper:
 
         # Save to DB
         if result_obj and result_obj.success:
+            # Set live preview cover before downloading
+            self._progress.current_cover = result_obj.cover_url
+            self._progress.current_title = result_obj.title or rom.title
+
+            # Download cover locally
+            local_cover = None
+            if result_obj.cover_url:
+                local_cover = await download_cover(rom_id, result_obj.cover_url)
+
+            # Download screenshots locally (up to 3)
+            local_screenshots: list[str] = []
+            if result_obj.screenshot_urls:
+                local_screenshots = await download_screenshots(rom_id, result_obj.screenshot_urls)
+
             update_values = {
                 "title": result_obj.title or rom.title,
                 "description": result_obj.description,
                 "year": result_obj.year,
+                "release_date": result_obj.release_date,
                 "publisher": result_obj.publisher,
                 "developer": result_obj.developer,
                 "genre": result_obj.genre,
                 "players": str(result_obj.players) if result_obj.players else None,
                 "region": result_obj.region,
-                "cover_url": result_obj.cover_url,
+                "rating": result_obj.rating,
+                "languages": json.dumps(result_obj.languages) if result_obj.languages else None,
+                "cover_url": local_cover or result_obj.cover_url,
+                "screenshots": json.dumps(local_screenshots) if local_screenshots else None,
                 "scrape_status": "done",
             }
+            if result_obj.igdb_id:
+                update_values["igdb_id"] = result_obj.igdb_id
+            if result_obj.screenscraper_id:
+                update_values["screenscraper_id"] = result_obj.screenscraper_id
+
             # Handle potential lock with a small retry
             for attempt in range(5):
                 try:
