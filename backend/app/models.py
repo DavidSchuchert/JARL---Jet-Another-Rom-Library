@@ -54,6 +54,11 @@ class Rom(Base):
     igdb_id: Mapped[Optional[int]] = mapped_column(nullable=True)
     screenscraper_id: Mapped[Optional[int]] = mapped_column(nullable=True)
     cover_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    screenshots: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list of local paths
+    rating: Mapped[Optional[float]] = mapped_column(nullable=True)  # 0-100 scale
+    languages: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list of language names
+    version: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    release_date: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # YYYY-MM-DD
     scrape_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending"
     )

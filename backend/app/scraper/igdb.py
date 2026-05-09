@@ -82,7 +82,7 @@ class IGDBScraper(BaseScraper):
         client = await self._get_client()
         
         # IGDB Query Language (Apex)
-        body = f'search "{query}"; fields name, summary, first_release_date, cover.url, genres.name, involved_companies.company.name, involved_companies.publisher; limit 5;'
+        body = f'search "{query}"; fields name, summary, first_release_date, cover.url, genres.name, involved_companies.company.name, involved_companies.publisher, aggregated_rating, screenshots.url, id; limit 5;'
         
         # Add platform filter if possible (mapping needed, but let's try generic first)
         
@@ -111,23 +111,27 @@ class IGDBScraper(BaseScraper):
         return ScraperResult(success=False, error="IGDB does not support hash lookup")
 
     def _parse_game(self, game: dict) -> ScraperResult:
-        # Extract publisher and developer
+        # Publisher and developer
         publisher = None
         developer = None
         if "involved_companies" in game:
             for ic in game["involved_companies"]:
-                company_name = ic["company"]["name"]
+                company_name = ic.get("company", {}).get("name")
+                if not company_name:
+                    continue
                 if ic.get("publisher"):
                     publisher = company_name
                 if ic.get("developer"):
                     developer = company_name
 
-        # Extract year
+        # Year + full release date from Unix timestamp
         year = None
+        release_date = None
         if "first_release_date" in game:
-            # Unix timestamp
             ts = game["first_release_date"]
-            year = time.gmtime(ts).tm_year
+            t = time.gmtime(ts)
+            year = t.tm_year
+            release_date = f"{t.tm_year:04d}-{t.tm_mon:02d}-{t.tm_mday:02d}"
 
         # Cover URL
         cover_url = None
@@ -135,17 +139,38 @@ class IGDBScraper(BaseScraper):
             url = game["cover"]["url"]
             if url.startswith("//"):
                 url = "https:" + url
-            # Change to big cover
             cover_url = url.replace("t_thumb", "t_cover_big")
+
+        # Screenshots
+        screenshot_urls = []
+        for ss in game.get("screenshots", [])[:3]:
+            url = ss.get("url", "")
+            if url.startswith("//"):
+                url = "https:" + url
+            if url:
+                screenshot_urls.append(url.replace("t_thumb", "t_screenshot_big"))
+
+        # Rating (IGDB aggregated critic score 0-100)
+        rating = None
+        agg = game.get("aggregated_rating")
+        if agg is not None:
+            try:
+                rating = round(float(agg), 1)
+            except (TypeError, ValueError):
+                pass
 
         return ScraperResult(
             title=game.get("name"),
             description=game.get("summary"),
             year=year,
+            release_date=release_date,
             publisher=publisher,
             developer=developer,
             genre=game.get("genres", [{}])[0].get("name") if game.get("genres") else None,
+            rating=rating,
             cover_url=cover_url,
+            screenshot_urls=screenshot_urls if screenshot_urls else None,
+            igdb_id=game.get("id"),
             success=True,
         )
 

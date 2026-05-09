@@ -10,13 +10,18 @@ class ScraperResult:
     title: Optional[str] = None
     description: Optional[str] = None
     year: Optional[int] = None
+    release_date: Optional[str] = None  # YYYY-MM-DD
     publisher: Optional[str] = None
     developer: Optional[str] = None
     genre: Optional[str] = None
     players: Optional[str | int] = None
     region: Optional[str] = None
+    languages: Optional[list[str]] = None
+    rating: Optional[float] = None  # 0-100 scale
     cover_url: Optional[str] = None
     screenshot_urls: Optional[list[str]] = None
+    igdb_id: Optional[int] = None
+    screenscraper_id: Optional[int] = None
     success: bool = False
     error: Optional[str] = None
 

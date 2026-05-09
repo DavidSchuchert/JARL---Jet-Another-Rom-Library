@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api import auth, health, platforms, roms, scan, scrape
 from app.auth import get_current_user
@@ -57,6 +58,13 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Static media files (covers + screenshots)
+    import os
+    os.makedirs("/app/data/covers", exist_ok=True)
+    os.makedirs("/app/data/screenshots", exist_ok=True)
+    app.mount("/media/covers", StaticFiles(directory="/app/data/covers"), name="covers")
+    app.mount("/media/screenshots", StaticFiles(directory="/app/data/screenshots"), name="screenshots")
 
     # Public routes
     app.include_router(auth.router, prefix="/api")
