@@ -28,6 +28,9 @@ def get_batch_scraper() -> BatchScraper:
             username=settings.scraper.username,
             password=settings.scraper.password,
             rate_limit=settings.scraper.rate_limit,
+            dev_id=settings.scraper.ss_dev_id,
+            dev_password=settings.scraper.ss_dev_password,
+            softname=settings.scraper.ss_softname,
         )
         _batch_scraper = BatchScraper(scraper=scraper)
     return _batch_scraper
@@ -123,6 +126,9 @@ async def test_scraper_auth():
     ss = ScreenScraperScraper(
         username=settings.scraper.username,
         password=settings.scraper.password,
+        dev_id=settings.scraper.ss_dev_id,
+        dev_password=settings.scraper.ss_dev_password,
+        softname=settings.scraper.ss_softname,
     )
     
     # We use a direct call to ssuserInfos to get detailed account status

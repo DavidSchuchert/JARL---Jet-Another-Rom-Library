@@ -32,21 +32,21 @@ class ScreenScraperScraper(BaseScraper):
     # Language priority
     LANG_PRIORITY = ["en", "fr", "de", "es", "it", "pt", "ja", "zh"]
 
-    # Default dev credentials (shared dev account from RomM)
-    # Users should obtain their own via ScreenScraper forum
-    DEFAULT_DEV_ID = "zurdi15"
-    DEFAULT_DEV_PASSWORD = "xTJwoOFjOQG"
-    DEFAULT_SOFTNAME = "jarl"
-
     def __init__(
         self,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        rate_limit: float = 2.0,  # seconds between requests
+        rate_limit: float = 2.0,
+        dev_id: str = "Greenfreeze",
+        dev_password: str = "vC0ibQRZDWp",
+        softname: str = "jarl",
     ):
         self.username = username
         self.password = password
         self.rate_limit = rate_limit
+        self.dev_id = dev_id
+        self.dev_password = dev_password
+        self.softname = softname
         self._token: Optional[str] = None
         self._last_request_time: float = 0.0
         self._client: Optional[httpx.AsyncClient] = None
@@ -79,9 +79,9 @@ class ScreenScraperScraper(BaseScraper):
         """Get base parameters for authentication and developer ID."""
         params = {
             "output": "json",
-            "devid": self.DEFAULT_DEV_ID,
-            "devpassword": self.DEFAULT_DEV_PASSWORD,
-            "softname": self.DEFAULT_SOFTNAME,
+            "devid": self.dev_id,
+            "devpassword": self.dev_password,
+            "softname": self.softname,
         }
         if self.username and self.password:
             params["ssid"] = self.username

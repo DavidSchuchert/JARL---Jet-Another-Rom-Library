@@ -74,7 +74,10 @@ class BatchScraper:
         self.scraper = scraper or ScreenScraperScraper(
             username=settings.scraper.username,
             password=settings.scraper.password,
-            rate_limit=settings.scraper.rate_limit
+            rate_limit=settings.scraper.rate_limit,
+            dev_id=settings.scraper.ss_dev_id,
+            dev_password=settings.scraper.ss_dev_password,
+            softname=settings.scraper.ss_softname,
         )
         self.fallback_scraper = IGDBScraper(
             client_id=settings.scraper.igdb_client_id,
