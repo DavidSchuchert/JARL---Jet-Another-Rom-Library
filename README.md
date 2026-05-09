@@ -54,6 +54,8 @@ http://localhost ──────────► ─────────�
 | Metadata  | ScreenScraper.fr REST API v2, IGDB API v4   |
 | Auth      | JWT (HS256) — all protected endpoints        |
 
+> **SQLite note:** JARL uses SQLite, which is ideal for single-user self-hosted setups. Concurrent heavy writes (e.g. running a full scan and batch scrape simultaneously) may cause brief lock contention — this is handled with retries internally. For multi-user or high-concurrency environments, PostgreSQL support can be added by swapping the `DATABASE__URL`.
+
 ---
 
 ## Quick Start
