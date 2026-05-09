@@ -36,6 +36,11 @@ const router = createRouter({
       path: '/scraper-test',
       name: 'scraper-test',
       component: () => import('@/views/ScraperTestView.vue')
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('@/views/SettingsView.vue')
     }
   ]
 })

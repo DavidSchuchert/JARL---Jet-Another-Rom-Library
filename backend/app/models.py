@@ -82,6 +82,15 @@ class Rom(Base):
         return f"<Rom(id={self.id}, title={self.title}, platform={self.platform_slug})>"
 
 
+class AppConfig(Base):
+    """Key-value store for runtime configuration overrides."""
+
+    __tablename__ = "app_config"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class ScanJob(Base):
     """ScanJob model representing a ROM scanning operation."""
 
