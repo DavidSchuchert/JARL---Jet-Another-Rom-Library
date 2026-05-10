@@ -154,43 +154,63 @@ PLATFORMS.update({
 # Common folder-name aliases for platforms that often use long/non-slug folder names.
 # Used as substring matches against the full lowercase path.
 _PLATFORM_ALIASES: dict[str, list[str]] = {
-    "snes":            ["super nintendo", "super famicom", "superfamicom"],
-    "nes":             ["famicom"],
-    "gameboy":         ["game boy"],
-    "gameboycolor":    ["game boy color"],
-    "gameboyadvance":  ["game boy advance"],
+    # Nintendo — SNES must have the LONGER alias so the flat lookup checks it before NES.
+    # "super nintendo entertainment system" (34 chars) > "nintendo entertainment system" (30 chars).
+    # This prevents the NES alias from matching inside the SNES No-Intro folder name.
+    "snes":            ["super nintendo entertainment system", "super nintendo", "super famicom", "superfamicom"],
+    "nes":             ["nintendo entertainment system", "famicom"],
+    "gameboyadvance":  ["game boy advance", "gameboy advance"],
+    "gameboycolor":    ["game boy color", "gameboy color"],
+    "gameboy":         ["game boy", "gameboy"],
     "n64":             ["nintendo 64"],
     "gamecube":        ["nintendo gamecube"],
-    "wii":             ["nintendo wii"],
     "wiiu":            ["wii u", "nintendo wii u"],
+    "wii":             ["nintendo wii"],
     "switch":          ["nintendo switch"],
     "nds":             ["nintendo ds"],
     "3ds":             ["nintendo 3ds"],
-    "psx":             ["playstation 1", "ps one", "psone", "playstation one"],
-    "ps2":             ["playstation 2"],
-    "ps3":             ["playstation 3"],
-    "ps4":             ["playstation 4"],
-    "ps5":             ["playstation 5"],
+    # Sony — "playstation portable/vita/2/3/4/5" are all longer than plain "playstation"
+    # so they are checked first in the flat alias lookup below, eliminating false positives.
     "psp":             ["playstation portable"],
     "vita":            ["playstation vita"],
-    "megadrive":       ["mega drive", "genesis", "sega genesis", "sega mega drive"],
+    "ps5":             ["playstation 5"],
+    "ps4":             ["playstation 4"],
+    "ps3":             ["playstation 3"],
+    "ps2":             ["playstation 2"],
+    # "playstation" (plain) matches "Sony - PlayStation" folders (PS1).
+    # It is checked AFTER the longer ps2-ps5 aliases because the flat lookup sorts by length.
+    "psx":             ["playstation one", "playstation 1", "ps one", "psone", "playstation"],
+    # Sega
+    "megadrive":       ["mega drive", "sega genesis", "sega mega drive", "genesis"],
     "mastersystem":    ["master system", "sega master system"],
     "gamegear":        ["game gear", "sega game gear"],
     "segacd":          ["sega cd", "mega cd", "sega mega cd"],
     "saturn":          ["sega saturn"],
     "dreamcast":       ["sega dreamcast"],
+    # Atari
     "atari2600":       ["atari 2600"],
     "atari5200":       ["atari 5200"],
     "atari7800":       ["atari 7800"],
     "atarilynx":       ["atari lynx"],
     "atarijaguar":     ["atari jaguar"],
     "atarist":         ["atari st"],
+    # Microsoft
     "xbox360":         ["xbox 360"],
+    "xbox":            ["microsoft xbox"],
 }
 
 for _slug, _aliases in _PLATFORM_ALIASES.items():
     if _slug in PLATFORMS:
         PLATFORMS[_slug].aliases = _aliases
+
+# Flat alias lookup sorted by alias length descending — longer/more-specific aliases win.
+# "playstation 2" (13 chars) is checked before "playstation" (11 chars), so a folder named
+# "Sony - PlayStation 2" returns ps2 and NOT psx even though it also contains "playstation".
+_ALIAS_LOOKUP: list[tuple[str, "PlatformInfo"]] = sorted(
+    [(alias, platform) for platform in PLATFORMS.values() for alias in platform.aliases],
+    key=lambda x: len(x[0]),
+    reverse=True,
+)
 
 
 def get_platform_by_extension(extension: str) -> Optional[PlatformInfo]:
@@ -231,12 +251,10 @@ def guess_platform_from_path(path: str) -> Optional[PlatformInfo]:
         if platform.slug in dir_parts or platform.path_pattern in dir_parts:
             return platform
 
-    # 2. Alias substring match against the directory path (handles long folder names
-    #    like "Nintendo - Super Nintendo Entertainment System").  Longer-slug platforms
-    #    are checked first so more-specific aliases win.
-    for platform in sorted(PLATFORMS.values(), key=lambda p: len(p.slug), reverse=True):
-        for alias in platform.aliases:
-            if alias in dir_lower:
-                return platform
+    # 2. Alias substring match — longest alias first so "playstation 2" beats "playstation",
+    #    "game boy advance" beats "game boy", etc.
+    for alias, platform in _ALIAS_LOOKUP:
+        if alias in dir_lower:
+            return platform
 
     return None
