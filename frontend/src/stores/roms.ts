@@ -16,6 +16,8 @@ export const useRomsStore = defineStore('roms', () => {
     totalPages: 0
   })
 
+  const sort = ref<{ by: string; dir: 'asc' | 'desc' }>({ by: 'title', dir: 'asc' })
+
   const hasMore = computed(() => pagination.value.page < pagination.value.totalPages)
 
   const fetchRoms = async (params: GetRomsParams = {}) => {
@@ -25,6 +27,8 @@ export const useRomsStore = defineStore('roms', () => {
       const response = await getRoms({
         page: pagination.value.page,
         page_size: pagination.value.pageSize,
+        sort_by: sort.value.by as GetRomsParams['sort_by'],
+        sort_dir: sort.value.dir,
         ...params
       })
       roms.value = response.items
@@ -65,6 +69,8 @@ export const useRomsStore = defineStore('roms', () => {
     pagination.value.page = page
   }
 
+  const setSort = (by: string, dir: 'asc' | 'desc') => { sort.value = { by, dir } }
+
   const nextPage = () => {
     if (hasMore.value) {
       pagination.value.page++
@@ -83,11 +89,13 @@ export const useRomsStore = defineStore('roms', () => {
     loading,
     error,
     pagination,
+    sort,
     hasMore,
     fetchRoms,
     fetchPlatforms,
     deleteRom,
     setPage,
+    setSort,
     nextPage,
     prevPage
   }

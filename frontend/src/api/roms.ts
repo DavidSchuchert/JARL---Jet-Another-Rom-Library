@@ -58,6 +58,8 @@ export interface GetRomsParams {
   region?: string
   year?: number
   genre?: string
+  sort_by?: 'title' | 'year' | 'rating' | 'size' | 'scrape_status'
+  sort_dir?: 'asc' | 'desc'
 }
 
 export const getRoms = async (params: GetRomsParams = {}): Promise<RomsResponse> => {

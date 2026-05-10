@@ -27,6 +27,8 @@ async def list_roms(
     year: Optional[int] = Query(default=None, description="Filter by release year"),
     genre: Optional[str] = Query(default=None, description="Filter by genre"),
     search: Optional[str] = Query(default=None, description="Search in title"),
+    sort_by: Optional[str] = Query(default="title", description="Sort field"),
+    sort_dir: Optional[str] = Query(default="asc", description="Sort direction: asc | desc"),
 ) -> RomListResponse:
     """
     List ROMs with pagination and filtering.
@@ -63,6 +65,19 @@ async def list_roms(
             search_filter = Rom.title.ilike(f"%{search}%")
             query = query.where(search_filter)
             count_query = count_query.where(search_filter)
+
+        _SORT_COLUMNS = {
+            "title": Rom.title,
+            "year": Rom.year,
+            "rating": Rom.rating,
+            "size": Rom.size,
+            "scrape_status": Rom.scrape_status,
+        }
+        sort_col = _SORT_COLUMNS.get(sort_by or "title", Rom.title)
+        if (sort_dir or "asc").lower() == "desc":
+            query = query.order_by(sort_col.desc().nulls_last())
+        else:
+            query = query.order_by(sort_col.asc().nulls_last())
 
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
