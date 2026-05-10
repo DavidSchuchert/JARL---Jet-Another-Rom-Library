@@ -172,28 +172,28 @@ class BatchScraper:
         query = rom.title if rom.title else rom.filename
         
         result_obj: Optional[ScraperResult] = None
+        import re
+        clean_query = re.sub(r'\(.*?\)|\[.*?\]', '', query).strip()
 
-        # 1. Try ScreenScraper (Hash)
-        if rom.hash_sha1:
-            result_obj = await self._scrape_with_retry(self.scraper.scrape, rom.hash_sha1, platform)
-
-        # 2. Try ScreenScraper (Name)
-        if not result_obj or not result_obj.success:
-            import re
-            clean_query = re.sub(r'\(.*?\)|\[.*?\]', '', query).strip()
-            search_results = await self._scrape_with_retry(self.scraper.search, clean_query, platform)
-            if search_results:
-                result_obj = search_results[0]
-
-        # 3. Try IGDB (Fallback)
-        if not result_obj or not result_obj.success:
-            import re
-            clean_query = re.sub(r'\(.*?\)|\[.*?\]', '', query).strip()
-            logger.info(f"Fallback to IGDB for {rom.filename}")
+        # 1. Try IGDB first (fast, no harsh rate limits)
+        try:
             await self.fallback_scraper.login()
             igdb_results = await self._scrape_with_retry(self.fallback_scraper.search, clean_query, platform)
             if igdb_results:
                 result_obj = igdb_results[0]
+        except Exception:
+            logger.debug(f"IGDB failed for {rom.filename}, trying ScreenScraper")
+
+        # 2. Fallback: ScreenScraper hash lookup
+        if not result_obj or not result_obj.success:
+            if rom.hash_sha1:
+                result_obj = await self._scrape_with_retry(self.scraper.scrape, rom.hash_sha1, platform)
+
+        # 3. Fallback: ScreenScraper name search
+        if not result_obj or not result_obj.success:
+            search_results = await self._scrape_with_retry(self.scraper.search, clean_query, platform)
+            if search_results:
+                result_obj = search_results[0]
 
         # Save to DB
         if result_obj and result_obj.success:
