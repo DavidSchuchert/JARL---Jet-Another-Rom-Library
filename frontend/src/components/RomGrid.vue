@@ -13,7 +13,12 @@ withDefaults(defineProps<{
   skeletonCount: 24
 })
 
-defineEmits<{ delete: [id: number]; retry: [] }>()
+defineEmits<{
+  delete: [id: number]
+  retry: []
+  toggleFavorite: [id: number]
+  togglePlayed: [id: number]
+}>()
 </script>
 
 <template>
@@ -52,7 +57,15 @@ defineEmits<{ delete: [id: number]; retry: [] }>()
 
     <!-- Normal grid -->
     <template v-else>
-      <RomCard v-for="(rom, index) in roms" :key="rom.id" :rom="rom" :index="index" @delete="$emit('delete', $event)" />
+      <RomCard
+        v-for="(rom, index) in roms"
+        :key="rom.id"
+        :rom="rom"
+        :index="index"
+        @delete="$emit('delete', $event)"
+        @toggleFavorite="$emit('toggleFavorite', $event)"
+        @togglePlayed="$emit('togglePlayed', $event)"
+      />
     </template>
   </div>
 </template>

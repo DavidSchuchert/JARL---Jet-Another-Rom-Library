@@ -88,6 +88,8 @@ class RomResponse(RomBase):
     scrape_status: str
     is_multi_disc: bool = False
     disc_count: Optional[int] = None
+    is_favorite: bool = False
+    is_played: bool = False
     created_at: datetime
     updated_at: datetime
 

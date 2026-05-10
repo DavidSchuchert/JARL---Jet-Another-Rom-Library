@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   delete: [id: number]
+  toggleFavorite: [id: number]
+  togglePlayed: [id: number]
 }>()
 
 const router = useRouter()
@@ -65,6 +67,36 @@ const navigateToDetail = () => {
       <div class="cartridge-ridges" aria-hidden="true"></div>
       <div class="cartridge-pins" aria-hidden="true">
         <span v-for="pin in 7" :key="pin" :style="{ '--pin-index': pin }"></span>
+      </div>
+
+      <!-- Favorite + Played buttons (top-left) -->
+      <div class="absolute top-3 left-3 flex flex-col gap-1">
+        <button
+          @click.stop="emit('toggleFavorite', rom.id)"
+          class="p-1.5 rounded transition-all duration-200"
+          :class="rom.is_favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'"
+          :style="rom.is_favorite
+            ? 'background: rgba(255,27,141,0.2); color: var(--neon-pink); border: 1px solid rgba(255,27,141,0.5); box-shadow: 0 0 8px rgba(255,27,141,0.3);'
+            : 'background: rgba(0,0,0,0.7); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);'"
+          aria-label="Toggle Favorite"
+        >
+          <svg class="w-3.5 h-3.5" :fill="rom.is_favorite ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        </button>
+        <button
+          @click.stop="emit('togglePlayed', rom.id)"
+          class="p-1.5 rounded transition-all duration-200"
+          :class="rom.is_played ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'"
+          :style="rom.is_played
+            ? 'background: rgba(0,200,100,0.2); color: var(--neon-green); border: 1px solid rgba(0,200,100,0.5); box-shadow: 0 0 8px rgba(0,200,100,0.3);'
+            : 'background: rgba(0,0,0,0.7); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);'"
+          aria-label="Toggle Played"
+        >
+          <svg class="w-3.5 h-3.5" :fill="rom.is_played ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
       </div>
 
       <!-- Delete button -->

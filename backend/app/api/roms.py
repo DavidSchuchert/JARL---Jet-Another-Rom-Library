@@ -29,6 +29,8 @@ async def list_roms(
     search: Optional[str] = Query(default=None, description="Search in title"),
     sort_by: Optional[str] = Query(default="title", description="Sort field"),
     sort_dir: Optional[str] = Query(default="asc", description="Sort direction: asc | desc"),
+    favorites: Optional[bool] = Query(default=None, description="Filter favorites only"),
+    played: Optional[bool] = Query(default=None, description="Filter by played status"),
 ) -> RomListResponse:
     """
     List ROMs with pagination and filtering.
@@ -65,6 +67,12 @@ async def list_roms(
             search_filter = Rom.title.ilike(f"%{search}%")
             query = query.where(search_filter)
             count_query = count_query.where(search_filter)
+        if favorites is True:
+            query = query.where(Rom.is_favorite == True)  # noqa: E712
+            count_query = count_query.where(Rom.is_favorite == True)  # noqa: E712
+        if played is not None:
+            query = query.where(Rom.is_played == played)
+            count_query = count_query.where(Rom.is_played == played)
 
         _SORT_COLUMNS = {
             "title": Rom.title,
@@ -153,6 +161,34 @@ async def get_stats() -> StatsResponse:
             top_platforms=top_platforms,
             last_scan=None,
         )
+
+
+@router.patch("/roms/{rom_id}/favorite", response_model=RomResponse, responses={404: {"model": ErrorResponse}})
+async def toggle_favorite(rom_id: int) -> RomResponse:
+    """Toggle the is_favorite flag on a ROM."""
+    async with get_db_context() as session:
+        result = await session.execute(select(Rom).where(Rom.id == rom_id))
+        rom = result.scalar_one_or_none()
+        if not rom:
+            raise HTTPException(status_code=404, detail=f"ROM with id {rom_id} not found")
+        rom.is_favorite = not rom.is_favorite
+        await session.commit()
+        await session.refresh(rom)
+        return RomResponse.model_validate(rom)
+
+
+@router.patch("/roms/{rom_id}/played", response_model=RomResponse, responses={404: {"model": ErrorResponse}})
+async def toggle_played(rom_id: int) -> RomResponse:
+    """Toggle the is_played flag on a ROM."""
+    async with get_db_context() as session:
+        result = await session.execute(select(Rom).where(Rom.id == rom_id))
+        rom = result.scalar_one_or_none()
+        if not rom:
+            raise HTTPException(status_code=404, detail=f"ROM with id {rom_id} not found")
+        rom.is_played = not rom.is_played
+        await session.commit()
+        await session.refresh(rom)
+        return RomResponse.model_validate(rom)
 
 
 @router.get("/roms/{rom_id}", response_model=RomResponse, responses={404: {"model": ErrorResponse}})

@@ -64,6 +64,8 @@ class Rom(Base):
     )
     is_multi_disc: Mapped[bool] = mapped_column(nullable=False, default=False)
     disc_count: Mapped[Optional[int]] = mapped_column(nullable=True)
+    is_favorite: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_played: Mapped[bool] = mapped_column(nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

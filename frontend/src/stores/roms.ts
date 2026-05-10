@@ -65,6 +65,11 @@ export const useRomsStore = defineStore('roms', () => {
     }
   }
 
+  const updateRomInList = (updated: Rom) => {
+    const idx = roms.value.findIndex(r => r.id === updated.id)
+    if (idx !== -1) roms.value[idx] = updated
+  }
+
   const setPage = (page: number) => {
     pagination.value.page = page
   }
@@ -94,6 +99,7 @@ export const useRomsStore = defineStore('roms', () => {
     fetchRoms,
     fetchPlatforms,
     deleteRom,
+    updateRomInList,
     setPage,
     setSort,
     nextPage,

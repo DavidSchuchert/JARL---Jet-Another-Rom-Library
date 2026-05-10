@@ -24,6 +24,8 @@ export interface Rom {
   scrape_status: string
   is_multi_disc: boolean
   disc_count: number | null
+  is_favorite: boolean
+  is_played: boolean
   created_at: string
   updated_at: string
 }
@@ -60,6 +62,8 @@ export interface GetRomsParams {
   genre?: string
   sort_by?: 'title' | 'year' | 'rating' | 'size' | 'scrape_status'
   sort_dir?: 'asc' | 'desc'
+  favorites?: boolean
+  played?: boolean
 }
 
 export const getRoms = async (params: GetRomsParams = {}): Promise<RomsResponse> => {
@@ -79,4 +83,14 @@ export const updateRom = async (id: number, payload: RomUpdatePayload): Promise<
 
 export const deleteRom = async (id: number): Promise<void> => {
   await api.delete(`/roms/${id}`)
+}
+
+export const toggleFavorite = async (id: number): Promise<Rom> => {
+  const response = await api.patch<Rom>(`/roms/${id}/favorite`)
+  return response.data
+}
+
+export const togglePlayed = async (id: number): Promise<Rom> => {
+  const response = await api.patch<Rom>(`/roms/${id}/played`)
+  return response.data
 }

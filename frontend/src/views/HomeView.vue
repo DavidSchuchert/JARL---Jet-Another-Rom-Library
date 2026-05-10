@@ -3,6 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { useRomsStore } from '@/stores/roms'
+import { toggleFavorite, togglePlayed } from '@/api/roms'
 import RomGrid from '@/components/RomGrid.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import FilterBar from '@/components/FilterBar.vue'
@@ -14,6 +15,9 @@ const router = useRouter()
 const search = ref('')
 const selectedPlatform = ref('')
 
+// Filter chip state: 'all' | 'favorites' | 'played' | 'unplayed'
+const activeFilter = ref<'all' | 'favorites' | 'played' | 'unplayed'>('all')
+
 const handleSortChange = (e: Event) => {
   const [by, dir] = (e.target as HTMLSelectElement).value.split(':')
   romsStore.setSort(by, dir as 'asc' | 'desc')
@@ -22,12 +26,37 @@ const handleSortChange = (e: Event) => {
   fetchRoms()
 }
 
+const buildFilterParams = () => {
+  const params: { favorites?: boolean; played?: boolean } = {}
+  if (activeFilter.value === 'favorites') params.favorites = true
+  else if (activeFilter.value === 'played') params.played = true
+  else if (activeFilter.value === 'unplayed') params.played = false
+  return params
+}
+
 const fetchRoms = () => {
   romsStore.fetchRoms({
     page: romsStore.pagination.page,
     search: search.value,
-    platform: selectedPlatform.value
+    platform: selectedPlatform.value,
+    ...buildFilterParams()
   })
+}
+
+const setFilter = (filter: 'all' | 'favorites' | 'played' | 'unplayed') => {
+  activeFilter.value = filter
+  romsStore.setPage(1)
+  fetchRoms()
+}
+
+const handleToggleFavorite = async (id: number) => {
+  const updated = await toggleFavorite(id)
+  romsStore.updateRomInList(updated)
+}
+
+const handleTogglePlayed = async (id: number) => {
+  const updated = await togglePlayed(id)
+  romsStore.updateRomInList(updated)
 }
 
 const debouncedFetch = useDebounceFn(() => {
@@ -153,12 +182,44 @@ const handleDelete = async (id: number) => {
       </button>
     </div>
 
+    <!-- Status Filter Chips -->
+    <div class="flex flex-wrap items-center gap-2">
+      <span style="font-family: 'Orbitron', sans-serif; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-muted); text-transform: uppercase;">Status</span>
+      <button
+        v-for="chip in ([
+          { key: 'all', label: 'All' },
+          { key: 'favorites', label: '♥ Favorites' },
+          { key: 'played', label: '✓ Played' },
+          { key: 'unplayed', label: 'Unplayed' },
+        ] as const)"
+        :key="chip.key"
+        @click="setFilter(chip.key)"
+        class="px-3 py-1 rounded transition-all duration-200 text-xs"
+        :style="activeFilter === chip.key
+          ? (chip.key === 'favorites'
+              ? 'background: rgba(255,27,141,0.18); border: 1px solid rgba(255,27,141,0.5); color: var(--neon-pink); font-family: Share Tech Mono, monospace; box-shadow: 0 0 6px rgba(255,27,141,0.2);'
+              : chip.key === 'played'
+                ? 'background: rgba(0,200,100,0.18); border: 1px solid rgba(0,200,100,0.5); color: var(--neon-green); font-family: Share Tech Mono, monospace; box-shadow: 0 0 6px rgba(0,200,100,0.2);'
+                : 'background: rgba(255,184,0,0.12); border: 1px solid rgba(255,184,0,0.4); color: var(--neon-cyan); font-family: Share Tech Mono, monospace;')
+          : 'background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: var(--text-muted); font-family: Share Tech Mono, monospace; cursor: pointer;'"
+      >{{ chip.label }}</button>
+    </div>
+
     <!-- Grid Section -->
     <section>
       <!-- Grid -->
       <div v-if="romsStore.roms.length > 0 || romsStore.loading || romsStore.error" class="space-y-8">
         <div class="library-stage">
-          <RomGrid :roms="romsStore.roms" :loading="romsStore.loading" :error="romsStore.error" :skeleton-count="50" @delete="handleDelete" @retry="fetchRoms()" />
+          <RomGrid
+            :roms="romsStore.roms"
+            :loading="romsStore.loading"
+            :error="romsStore.error"
+            :skeleton-count="50"
+            @delete="handleDelete"
+            @retry="fetchRoms()"
+            @toggleFavorite="handleToggleFavorite"
+            @togglePlayed="handleTogglePlayed"
+          />
         </div>
 
         <!-- Pagination -->
