@@ -57,23 +57,33 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-_NEW_COLUMNS: list[tuple[str, str, str]] = [
-    ("roms", "screenshots", "TEXT"),
-    ("roms", "rating", "REAL"),
-    ("roms", "languages", "TEXT"),
-    ("roms", "version", "VARCHAR(100)"),
-    ("roms", "release_date", "VARCHAR(20)"),
-    ("roms", "is_multi_disc", "INTEGER NOT NULL DEFAULT 0"),
-    ("roms", "disc_count", "INTEGER"),
-]
+_SA_TYPE_TO_DDL = {
+    "VARCHAR": lambda c: f"VARCHAR({c.type.length})" if hasattr(c.type, "length") and c.type.length else "VARCHAR",
+    "TEXT": lambda _: "TEXT",
+    "INTEGER": lambda c: "INTEGER NOT NULL DEFAULT 0" if not c.nullable and c.default is not None else "INTEGER",
+    "FLOAT": lambda _: "REAL",
+    "BOOLEAN": lambda c: "INTEGER NOT NULL DEFAULT 0" if not c.nullable else "INTEGER",
+    "DATETIME": lambda _: "TIMESTAMP",
+}
+
+
+def _col_to_ddl(col) -> str:
+    type_name = type(col.type).__name__.upper()
+    if type_name in _SA_TYPE_TO_DDL:
+        return _SA_TYPE_TO_DDL[type_name](col)
+    return type_name
 
 
 async def _migrate_new_columns(conn) -> None:
-    for table, col, col_type in _NEW_COLUMNS:
-        rows = await conn.execute(text(f"PRAGMA table_info({table})"))
-        existing = [r[1] for r in rows.fetchall()]
-        if col not in existing:
-            await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+    for table in Base.metadata.sorted_tables:
+        rows = await conn.execute(text(f"PRAGMA table_info({table.name})"))
+        existing = {r[1] for r in rows.fetchall()}
+        for col in table.columns:
+            if col.name not in existing:
+                ddl = _col_to_ddl(col)
+                await conn.execute(
+                    text(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {ddl}")
+                )
 
 
 async def init_db() -> None:
