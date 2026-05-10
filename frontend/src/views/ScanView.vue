@@ -91,7 +91,14 @@ const handleStopScrape = async () => {
 
 const formatTime = (dateString: string | null): string => {
   if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return new Date(parseUtcTimestamp(dateString)).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+const parseUtcTimestamp = (dateString: string): number => {
+  if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.match(/\d{2}:\d{2}:\d{2}-/)) {
+    return new Date(dateString + 'Z').getTime()
+  }
+  return new Date(dateString).getTime()
 }
 
 const formatDuration = (seconds: number): string => {
@@ -118,7 +125,8 @@ const stopTick = () => {
 const scanEta = computed(() => {
   const p = scanStore.progress
   if (p.status !== 'running' || !p.started_at || !p.scanned_files || !p.total_files) return null
-  const elapsed = (now.value - new Date(p.started_at).getTime()) / 1000
+  const elapsed = (now.value - parseUtcTimestamp(p.started_at)) / 1000
+  if (elapsed <= 0) return null
   const avgPerFile = elapsed / p.scanned_files
   const remaining = (p.total_files - p.scanned_files) * avgPerFile
   return { avgPerFile, remaining }
@@ -127,7 +135,8 @@ const scanEta = computed(() => {
 const scrapeEta = computed(() => {
   const s = scrapeStatus.value
   if (!s || s.status !== 'running' || !s.started_at || !s.done || !s.total) return null
-  const elapsed = (now.value - new Date(s.started_at).getTime()) / 1000
+  const elapsed = (now.value - parseUtcTimestamp(s.started_at)) / 1000
+  if (elapsed <= 0) return null
   const avgPerGame = elapsed / s.done
   const remaining = (s.total - s.done) * avgPerGame
   return { avgPerGame, remaining }
