@@ -58,7 +58,7 @@ const usersLoading = ref(false)
 const usersError = ref('')
 
 const newUsername = ref('')
-const newPassword = ref('')
+const newUserPassword = ref('')
 const newRole = ref<'admin' | 'viewer'>('viewer')
 const addingUser = ref(false)
 const addUserError = ref('')
@@ -79,9 +79,9 @@ async function submitAddUser() {
   addUserError.value = ''
   addingUser.value = true
   try {
-    await createUser({ username: newUsername.value, password: newPassword.value, role: newRole.value })
+    await createUser({ username: newUsername.value, password: newUserPassword.value, role: newRole.value })
     newUsername.value = ''
-    newPassword.value = ''
+    newUserPassword.value = ''
     newRole.value = 'viewer'
     await loadUsers()
   } catch (e: any) {
@@ -317,7 +317,7 @@ onMounted(() => {
           <div>
             <label style="font-family:'Share Tech Mono',monospace; font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; display:block; margin-bottom:3px;">Password</label>
             <input
-              v-model="newPassword"
+              v-model="newUserPassword"
               type="password"
               minlength="8"
               required
