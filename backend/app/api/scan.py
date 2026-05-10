@@ -3,9 +3,10 @@ import asyncio
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 
+from app.auth import require_admin
 from app.database import get_db_context
 from app.models import ScanJob
 from app.schemas import (
@@ -24,7 +25,7 @@ scan_lock = asyncio.Lock()
 current_scan_task: Optional[asyncio.Task] = None
 
 
-@router.post("/scan/start", response_model=ScanStartResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/scan/start", response_model=ScanStartResponse, status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(require_admin)])
 async def start_scan(full_scan: bool = False) -> ScanStartResponse:
     """
     Start a new ROM scan job.

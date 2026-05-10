@@ -3,9 +3,10 @@ import asyncio
 from typing import Optional
 import httpx
 
-from fastapi import APIRouter, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy import select, func
 
+from app.auth import require_admin
 from app.database import get_db_context
 from app.models import Rom
 from app.scraper.batch import BatchScraper, BatchStatus
@@ -35,7 +36,7 @@ def get_batch_scraper() -> BatchScraper:
         _batch_scraper = BatchScraper(scraper=scraper)
     return _batch_scraper
 
-@router.post("/scrape/start", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/scrape/start", status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(require_admin)])
 async def start_batch_scrape(
     background_tasks: BackgroundTasks,
     platform: Optional[str] = None,
@@ -73,7 +74,7 @@ async def start_batch_scrape(
         }
 
 
-@router.post("/scrape/rom/{rom_id}", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/scrape/rom/{rom_id}", status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(require_admin)])
 async def start_rom_rescrape(background_tasks: BackgroundTasks, rom_id: int):
     """Force metadata scraping for a single ROM."""
     async with scraper_lock:
@@ -172,7 +173,7 @@ async def test_scraper_auth():
 
     return results
 
-@router.post("/scrape/stop")
+@router.post("/scrape/stop", dependencies=[Depends(require_admin)])
 async def stop_scrape():
     """Cancel the running scraping job."""
     batch_scraper = get_batch_scraper()

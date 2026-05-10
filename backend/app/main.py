@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, health, platforms, roms, scan, scrape
+from app.api import auth, health, platforms, roms, scan, scrape, users
 from app.auth import get_current_user
 from app.config import get_settings
 from app.database import close_db, init_db
@@ -75,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(scan.router, prefix="/api", tags=["Scan"], dependencies=[Depends(get_current_user)])
     app.include_router(platforms.router, prefix="/api", tags=["Platforms"], dependencies=[Depends(get_current_user)])
     app.include_router(scrape.router, prefix="/api", tags=["Scrape"], dependencies=[Depends(get_current_user)])
+    app.include_router(users.router, prefix="/api", tags=["Users"], dependencies=[Depends(get_current_user)])
 
     return app
 

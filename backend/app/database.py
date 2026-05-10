@@ -94,6 +94,22 @@ async def init_db() -> None:
         await conn.execute(text("PRAGMA synchronous=NORMAL"))
         await _migrate_new_columns(conn)
 
+    # Seed admin user from env vars if no users exist
+    from app.models import User  # noqa: F401 — import after table creation
+    from app.auth import get_password_hash
+
+    async with async_session_maker() as session:
+        result = await session.execute(text("SELECT COUNT(*) FROM users"))
+        count = result.scalar()
+        if count == 0:
+            settings = get_settings()
+            hashed = get_password_hash(settings.auth.password)
+            await session.execute(
+                text("INSERT INTO users (username, password_hash, role) VALUES (:u, :h, :r)"),
+                {"u": settings.auth.username, "h": hashed, "r": "admin"},
+            )
+            await session.commit()
+
 
 async def close_db() -> None:
     """Close database connections."""

@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import select
 
 from app.config import get_settings
 
@@ -32,14 +33,17 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.auth.token_expire_minutes)
-    
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
     return encoded_jwt
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
-    """Dependency for obtaining the current user from a token."""
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Dependency for obtaining the current User from a JWT token."""
+    from app.database import get_db_context
+    from app.models import User
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -47,9 +51,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
     )
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
-        username: str = payload.get("sub")
-        if username is None or username != settings.auth.username:
+        user_id: Optional[int] = payload.get("user_id")
+        if user_id is None:
             raise credentials_exception
-        return username
     except JWTError:
         raise credentials_exception
+
+    async with get_db_context() as session:
+        result = await session.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise credentials_exception
+        return user
+
+
+async def require_admin(current_user=Depends(get_current_user)):
+    """Dependency that requires the current user to have the admin role."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return current_user
