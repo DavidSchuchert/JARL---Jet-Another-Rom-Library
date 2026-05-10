@@ -241,12 +241,15 @@ class ScreenScraperScraper(BaseScraper):
                     except ValueError:
                         continue
 
-            # Players
-            players = game.get("joueurs", "1")
+            # Players — may be nested {"text": "1"} or plain string
+            raw_players = game.get("joueurs", "1")
+            players = raw_players.get("text") if isinstance(raw_players, dict) else raw_players
 
-            # Publisher / Developer — v2 uses 'editeur' and 'developpeur' (singular)
-            publisher = game.get("editeur")
-            developer = game.get("developpeur")
+            # Publisher / Developer — v2 returns nested {"id": ..., "text": "Name"}
+            raw_pub = game.get("editeur")
+            publisher = raw_pub.get("text") if isinstance(raw_pub, dict) else raw_pub
+            raw_dev = game.get("developpeur")
+            developer = raw_dev.get("text") if isinstance(raw_dev, dict) else raw_dev
 
             # Genre
             genres_list = game.get("genres", []) or []
