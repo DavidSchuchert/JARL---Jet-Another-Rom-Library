@@ -54,7 +54,7 @@ class BatchProgress:
 @dataclass
 class BatchConfig:
     """Configuration for batch scraping."""
-    concurrency: int = 2  # parallel scraper workers
+    concurrency: int = 8  # parallel scraper workers
     max_retries: int = 3
     retry_delay: float = 5.0  # seconds
 
