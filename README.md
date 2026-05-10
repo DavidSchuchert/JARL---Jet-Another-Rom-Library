@@ -13,10 +13,14 @@ JARL scans your ROM directories, identifies games by filename, computes xxHash f
 ## Features
 
 - **Filesystem Scanner** — Recursively scans ROM directories, parses filenames, detects platforms, computes xxHash/SHA1 for deduplication
+- **Multi-Disc Support** — Automatic grouping of .cue/.m3u multi-disc games (PS1, Saturn, Sega CD)
 - **ScreenScraper Integration** — Hash-based and name-based lookup via ScreenScraper.fr API v2
 - **IGDB Fallback** — Name-based search via Twitch OAuth (IGDB has no ROM hash lookup)
 - **Local Media Storage** — Cover art and screenshots downloaded and served locally (no broken external links)
 - **Rich Metadata** — Rating (0–100), genre, region, publisher, developer, languages, release date, version
+- **Favorites & Played** — Mark games as favorite (♥) or played (✓) with one click, filter by status
+- **Statistics Dashboard** — Library overview widget with total size, scrape coverage, top platforms chart
+- **Multi-User Support** — Multiple users with admin/viewer roles, password management, role-based access control
 - **Deduplication** — xxHash (all files) + SHA1 (files ≤ hash limit) for duplicate detection
 - **Smart Skipping** — Skips files unchanged since last scan (path + size + mtime check)
 - **Orphan Cleanup** — Automatically removes DB entries for ROMs deleted from disk
@@ -24,6 +28,8 @@ JARL scans your ROM directories, identifies games by filename, computes xxHash f
 - **Live Scrape Preview** — Real-time cover thumbnail and title during batch scraping
 - **Batch Scraping** — Background metadata enrichment with retry, concurrency, and cancellation
 - **Manual Metadata Edit** — PATCH any ROM's metadata via API or the built-in edit modal
+- **Sort & Filter** — Sort by title, year, rating, size; filter by platform, region, favorites, played status
+- **Skeleton Loading** — Smooth loading states with animated placeholder cards
 - **JWT Authentication** — All API endpoints (except `/auth/*` and `/health`) require a valid Bearer token
 - **REST API** — FastAPI with Swagger/ReDoc at `/api/docs`
 - **Vue.js Frontend** — Retro-arcade dark UI with platform browser, ROM grid, detail pages, and search
@@ -52,9 +58,9 @@ http://localhost ──────────► ─────────�
 | Runtime   | Python 3.11+, Node 20+                       |
 | Infra     | Docker Compose, nginx:alpine                  |
 | Metadata  | ScreenScraper.fr REST API v2, IGDB API v4   |
-| Auth      | JWT (HS256) — all protected endpoints        |
+| Auth      | JWT (HS256) + RBAC (admin / viewer roles)     |
 
-> **SQLite note:** JARL uses SQLite, which is ideal for single-user self-hosted setups. Concurrent heavy writes (e.g. running a full scan and batch scrape simultaneously) may cause brief lock contention — this is handled with retries internally. For multi-user or high-concurrency environments, PostgreSQL support can be added by swapping the `DATABASE__URL`.
+> **SQLite note:** JARL uses SQLite with WAL mode, which handles multiple concurrent readers well. Concurrent heavy writes (e.g. running a full scan and batch scrape simultaneously) may cause brief lock contention — this is handled with retries internally. For high-concurrency environments, PostgreSQL support can be added by swapping the `DATABASE__URL`.
 
 ---
 
@@ -130,9 +136,16 @@ curl http://localhost:8000/api/scrape/status \
 
 ---
 
-## Authentication
+## Authentication & Users
 
-JARL uses **JWT (HS256)** for API authentication. All endpoints except the following are protected:
+JARL uses **JWT (HS256)** with **role-based access control**. Two roles exist:
+
+| Role | Permissions |
+|---|---|
+| **admin** | Full access — scan, scrape, manage users, edit/delete ROMs |
+| **viewer** | Read-only — browse, search, filter, mark favorites/played |
+
+On first startup, an admin user is created from `AUTH__USERNAME` / `AUTH__PASSWORD` env vars. Additional users can be created via the Settings page or API.
 
 | Endpoint | Method | Protected |
 |---|---|---|
@@ -199,8 +212,17 @@ Base URL: `http://localhost:8000/api`
 ### Auth
 
 ```
-POST /api/auth/login    # Get JWT token
-GET  /api/auth/me      # Validate token
+POST  /api/auth/login      # Get JWT token
+GET   /api/auth/me         # Validate token + role
+PATCH /api/auth/password   # Change own password
+```
+
+### Users (admin only)
+
+```
+GET    /api/users          # List all users
+POST   /api/users          # Create user (username, password, role)
+DELETE /api/users/{id}     # Delete user (cannot delete self)
 ```
 
 ### Health
@@ -212,10 +234,12 @@ GET /api/health
 ### ROMs
 
 ```
-GET    /api/roms?page=1&page_size=50&platform=nes&search=zelda
+GET    /api/roms?page=1&page_size=50&platform=nes&search=zelda&sort_by=title&sort_dir=asc&favorites=true&played=false
 GET    /api/roms/{id}
-GET    /api/roms/stats
+GET    /api/roms/stats         # Library stats (total, size, coverage, top platforms)
 PATCH  /api/roms/{id}          # Update metadata (title, description, year, rating, …)
+PATCH  /api/roms/{id}/favorite # Toggle favorite status
+PATCH  /api/roms/{id}/played   # Toggle played status
 DELETE /api/roms/{id}          # Also deletes local cover / screenshot files
 ```
 
@@ -230,8 +254,8 @@ GET  /api/platforms/{slug}/roms?page=1&page_size=50
 ### Scan
 
 ```
-POST /api/scan/start
-POST /api/scan/start?full_scan=true
+POST /api/scan/start               # Admin only
+POST /api/scan/start?full_scan=true # Admin only
 GET  /api/scan/events/{job_id}?after=0
 GET  /api/scan/status/{job_id}
 GET  /api/scan/progress
@@ -240,10 +264,10 @@ GET  /api/scan/progress
 ### Scrape
 
 ```
-POST /api/scrape/start?only_missing=true
-POST /api/scrape/rom/{rom_id}
+POST /api/scrape/start?only_missing=true  # Admin only
+POST /api/scrape/rom/{rom_id}             # Admin only
 GET  /api/scrape/status
-POST /api/scrape/stop
+POST /api/scrape/stop                     # Admin only
 GET  /api/scrape/test-auth
 ```
 
@@ -280,13 +304,14 @@ jarl/
 ├── backend/
 │   ├── app/
 │   │   ├── api/           # FastAPI routes
-│   │   │   ├── auth.py       # Login / me
+│   │   │   ├── auth.py       # Login / me / password
 │   │   │   ├── health.py
-│   │   │   ├── roms.py
+│   │   │   ├── roms.py       # CRUD, stats, favorites, played
 │   │   │   ├── platforms.py
 │   │   │   ├── scan.py
-│   │   │   └── scrape.py
-│   │   ├── auth.py          # JWT utilities (verify, create_token)
+│   │   │   ├── scrape.py
+│   │   │   └── users.py      # User management (admin)
+│   │   ├── auth.py          # JWT utilities, RBAC (get_current_user, require_admin)
 │   │   ├── models.py        # SQLAlchemy models
 │   │   ├── schemas.py       # Pydantic schemas
 │   │   ├── config.py        # pydantic-settings
