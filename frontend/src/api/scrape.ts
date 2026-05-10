@@ -12,6 +12,7 @@ export interface ScrapeStatus {
   current_cover: string | null
   percent: number
   errors: string[]
+  started_at: string | null
 }
 
 export const startScrape = async (platform?: string, onlyMissing: boolean = true) => {

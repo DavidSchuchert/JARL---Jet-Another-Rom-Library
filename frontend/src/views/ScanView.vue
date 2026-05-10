@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useScanStore } from '@/stores/scan'
 import { startScrape as apiStartScrape, getScrapeStatus as apiGetScrapeStatus, stopScrape as apiStopScrape, type ScrapeStatus } from '@/api/scrape'
 import { getPlatforms, type Platform } from '@/api/platforms'
@@ -94,7 +94,47 @@ const formatTime = (dateString: string | null): string => {
   return new Date(dateString).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
+const formatDuration = (seconds: number): string => {
+  if (seconds < 0 || !isFinite(seconds)) return '--'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = Math.floor(seconds % 60)
+  if (h > 0) return `${h}h ${m}m ${s}s`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
+}
+
+const now = ref(Date.now())
+let tickInterval: number | null = null
+
+const startTick = () => {
+  if (tickInterval) return
+  tickInterval = window.setInterval(() => { now.value = Date.now() }, 1000)
+}
+const stopTick = () => {
+  if (tickInterval) { clearInterval(tickInterval); tickInterval = null }
+}
+
+const scanEta = computed(() => {
+  const p = scanStore.progress
+  if (p.status !== 'running' || !p.started_at || !p.scanned_files || !p.total_files) return null
+  const elapsed = (now.value - new Date(p.started_at).getTime()) / 1000
+  const avgPerFile = elapsed / p.scanned_files
+  const remaining = (p.total_files - p.scanned_files) * avgPerFile
+  return { avgPerFile, remaining }
+})
+
+const scrapeEta = computed(() => {
+  const s = scrapeStatus.value
+  if (!s || s.status !== 'running' || !s.started_at || !s.done || !s.total) return null
+  const elapsed = (now.value - new Date(s.started_at).getTime()) / 1000
+  const avgPerGame = elapsed / s.done
+  const remaining = (s.total - s.done) * avgPerGame
+  return { avgPerGame, remaining }
+})
+
 onMounted(() => {
+  startTick()
   scanStore.attachCurrentScan()
   getPlatforms().then(res => platforms.value = res)
   apiGetScrapeStatus().then(status => {
@@ -106,6 +146,7 @@ onMounted(() => {
 onUnmounted(() => {
   scanStore.stopPolling()
   stopScrapePolling()
+  stopTick()
 })
 </script>
 
@@ -157,9 +198,21 @@ onUnmounted(() => {
                     <span style="color: var(--text-muted); font-size: 0.8rem;"> / {{ scanStore.progress.total_files }}</span>
                   </p>
                 </div>
-                <div class="text-right">
-                  <p style="font-family: 'Orbitron', sans-serif; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Started</p>
-                  <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; color: var(--text-main);">{{ formatTime(scanStore.progress.started_at) }}</p>
+                <div class="text-right space-y-2">
+                  <div>
+                    <p style="font-family: 'Orbitron', sans-serif; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Started</p>
+                    <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; color: var(--text-main);">{{ formatTime(scanStore.progress.started_at) }}</p>
+                  </div>
+                  <div v-if="scanEta" class="flex gap-4 justify-end">
+                    <div>
+                      <p style="font-family: 'Orbitron', sans-serif; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 2px;">Avg/File</p>
+                      <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: var(--neon-cyan);">{{ scanEta.avgPerFile.toFixed(2) }}s</p>
+                    </div>
+                    <div>
+                      <p style="font-family: 'Orbitron', sans-serif; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 2px;">ETA</p>
+                      <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: var(--neon-cyan);">{{ formatDuration(scanEta.remaining) }}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -246,10 +299,16 @@ onUnmounted(() => {
                       {{ scrapeStatus.current_file }}
                     </p>
                   </div>
-                  <div class="flex items-center gap-3 mt-2">
+                  <div class="flex items-center gap-3 mt-2 flex-wrap">
                     <span style="font-family: 'Press Start 2P', monospace; font-size: 0.7rem; color: var(--neon-green);">{{ scrapeStatus.done }}</span>
                     <span style="font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: var(--text-muted);">/ {{ scrapeStatus.total }}</span>
                     <span style="font-family: 'Orbitron', monospace; font-size: 0.65rem; color: var(--neon-green);">{{ scrapeStatus.percent.toFixed(1) }}%</span>
+                    <template v-if="scrapeEta">
+                      <span style="font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; color: var(--text-muted);">·</span>
+                      <span style="font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; color: var(--neon-cyan);">{{ scrapeEta.avgPerGame.toFixed(1) }}s/game</span>
+                      <span style="font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; color: var(--text-muted);">·</span>
+                      <span style="font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; color: var(--neon-cyan);">ETA {{ formatDuration(scrapeEta.remaining) }}</span>
+                    </template>
                   </div>
                 </div>
 
