@@ -63,6 +63,8 @@ _NEW_COLUMNS: list[tuple[str, str, str]] = [
     ("roms", "languages", "TEXT"),
     ("roms", "version", "VARCHAR(100)"),
     ("roms", "release_date", "VARCHAR(20)"),
+    ("roms", "is_multi_disc", "INTEGER NOT NULL DEFAULT 0"),
+    ("roms", "disc_count", "INTEGER"),
 ]
 
 
@@ -78,6 +80,8 @@ async def init_db() -> None:
     """Initialize the database by creating all tables."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("PRAGMA journal_mode=WAL"))
+        await conn.execute(text("PRAGMA synchronous=NORMAL"))
         await _migrate_new_columns(conn)
 
 

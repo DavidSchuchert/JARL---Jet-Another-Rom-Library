@@ -40,6 +40,63 @@ def is_rom_file(path: Path) -> bool:
     return get_platform_by_extension(extension) is not None
 
 
+def collect_disc_skips(directory: Path) -> set[Path]:
+    """Scan a directory for .cue and .m3u files and return track files to skip."""
+    import re
+    skips: set[Path] = set()
+    try:
+        entries = list(directory.iterdir())
+    except (OSError, PermissionError):
+        return skips
+
+    cue_files = [e for e in entries if e.suffix.lower() == ".cue"]
+    m3u_files = [e for e in entries if e.suffix.lower() == ".m3u"]
+    disc_track_re = re.compile(r"[\s\(]*(disc|track|cd)\s*\d+[\)\s]*$", re.IGNORECASE)
+
+    for cue in cue_files:
+        try:
+            with cue.open(encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line.upper().startswith("FILE"):
+                        import re as _re
+                        m = _re.search(r'FILE\s+"([^"]+)"', line, _re.IGNORECASE)
+                        if m:
+                            skips.add((directory / m.group(1)).resolve())
+        except OSError:
+            pass
+        cue_stem = cue.stem.lower()
+        for entry in entries:
+            if entry.suffix.lower() not in (".bin", ".img"):
+                continue
+            stem = entry.stem.lower()
+            if stem == cue_stem:
+                skips.add(entry.resolve())
+                continue
+            base = disc_track_re.sub("", stem).strip()
+            if base == cue_stem:
+                skips.add(entry.resolve())
+
+    for m3u in m3u_files:
+        try:
+            with m3u.open(encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        skips.add((directory / line).resolve())
+        except OSError:
+            pass
+    return skips
+
+
+def should_skip_disc_file(file_path: Path, skips_cache: dict[Path, set[Path]]) -> bool:
+    """Return True if file_path is a track file managed by a .cue or .m3u."""
+    parent = file_path.parent
+    if parent not in skips_cache:
+        skips_cache[parent] = collect_disc_skips(parent)
+    return file_path.resolve() in skips_cache[parent]
+
+
 async def compute_file_hashes(file_path: Path) -> tuple[str, str]:
     """Compute xxhash and sha1 for a file."""
     import hashlib
@@ -112,6 +169,14 @@ async def process_rom_file(file_path: Path, job_id: int, full_scan: bool = False
 
         parsed = parse_filename(file_path.stem)
 
+        import re as _re
+        _disc_re = _re.compile(r"[\s\(]*(disc|cd|track)\s*(\d+)[\)\s]*$", _re.IGNORECASE)
+        is_multi_disc = bool(_disc_re.search(file_path.stem)) or file_path.suffix.lower() in (".cue", ".m3u")
+        disc_count = None
+        if file_path.suffix.lower() in (".cue", ".m3u"):
+            _siblings = collect_disc_skips(file_path.parent)
+            disc_count = len(_siblings) if _siblings else None
+
         langs = parsed.get("languages")
         return Rom(
             path=str(file_path),
@@ -126,6 +191,8 @@ async def process_rom_file(file_path: Path, job_id: int, full_scan: bool = False
             hash_sha1=sha1_hash,
             hash_xxhash=xxhash_val,
             scrape_status="pending",
+            is_multi_disc=is_multi_disc,
+            disc_count=disc_count,
         )
     except Exception as e:
         logger.exception(f"Error processing file {file_path}: {e}")
@@ -145,10 +212,12 @@ async def scan_directory(job_id: int, full_scan: bool = False) -> None:
     logger.info("Counting files...")
     def count_files():
         count = 0
+        local_skips: dict[Path, set[Path]] = {}
         for root, dirs, files in os.walk(roms_path):
             dirs[:] = [d for d in dirs if not is_hidden_or_system(Path(root) / d)]
             for f in files:
-                if is_rom_file(Path(f)):
+                fp = Path(root) / f
+                if is_rom_file(fp) and not should_skip_disc_file(fp, local_skips):
                     count += 1
         return count
 
@@ -340,6 +409,7 @@ async def walk_directory(root_path: Path) -> AsyncGenerator[list[Path], None]:
     skipped_errors = 0
 
     logger.debug(f"Starting walk from {root_path}")
+    skips_cache: dict[Path, set[Path]] = {}
 
     while not queue.empty():
         current_dir = await queue.get()
@@ -371,6 +441,8 @@ async def walk_directory(root_path: Path) -> AsyncGenerator[list[Path], None]:
             if is_dir:
                 await queue.put(entry_path)
             elif is_rom_file(entry_path):
+                if should_skip_disc_file(entry_path, skips_cache):
+                    continue
                 batch.append(entry_path)
                 if len(batch) >= BATCH_SIZE:
                     logger.debug(f"Yielding batch of {len(batch)} files")

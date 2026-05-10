@@ -86,6 +86,8 @@ class RomResponse(RomBase):
     version: Optional[str] = None
     release_date: Optional[str] = None
     scrape_status: str
+    is_multi_disc: bool = False
+    disc_count: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

@@ -62,6 +62,8 @@ class Rom(Base):
     scrape_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending"
     )
+    is_multi_disc: Mapped[bool] = mapped_column(nullable=False, default=False)
+    disc_count: Mapped[Optional[int]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -76,6 +78,8 @@ class Rom(Base):
         Index("ix_roms_platform_year", "platform_slug", "year"),
         Index("ix_roms_platform_genre", "platform_slug", "genre"),
         Index("ix_roms_title", "title"),
+        Index("ix_roms_scrape_status", "scrape_status"),
+        Index("ix_roms_platform_title", "platform_slug", "title"),
     )
 
     def __repr__(self) -> str:

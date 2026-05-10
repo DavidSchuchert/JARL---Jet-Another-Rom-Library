@@ -22,6 +22,8 @@ export interface Rom {
   path: string
   hash_sha1: string | null
   scrape_status: string
+  is_multi_disc: boolean
+  disc_count: number | null
   created_at: string
   updated_at: string
 }
