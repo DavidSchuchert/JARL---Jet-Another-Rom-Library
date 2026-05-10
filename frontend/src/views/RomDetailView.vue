@@ -289,13 +289,13 @@ onUnmounted(() => { if (scrapePoll) clearInterval(scrapePoll) })
         <!-- Stats Grid -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div v-for="(item, i) in [
-            { label: 'Genre',     value: rom.genre || 'Unknown' },
-            { label: 'Developer', value: rom.developer || 'Unknown' },
-            { label: 'Publisher', value: rom.publisher || 'Unknown' },
+            { label: 'Genre',     value: rom.genre },
+            { label: 'Developer', value: rom.developer },
+            { label: 'Publisher', value: rom.publisher },
             { label: 'Size',      value: formatFileSize(rom.size) },
-          ]" :key="i" class="rounded-md p-4" style="background: rgba(12,10,28,0.8); border: 1px solid rgba(255,184,0,0.07);">
+          ].filter(item => item.value)" :key="i" class="rounded-md p-4" style="background: rgba(12,10,28,0.8); border: 1px solid rgba(255,184,0,0.07);">
             <p style="font-family: 'Orbitron', sans-serif; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">{{ item.label }}</p>
-            <p class="font-bold truncate" :title="item.value" style="color: var(--text-main); font-size: 0.85rem;">{{ item.value }}</p>
+            <p class="font-bold truncate" :title="item.value!" style="color: var(--text-main); font-size: 0.85rem;">{{ item.value }}</p>
           </div>
         </div>
 
