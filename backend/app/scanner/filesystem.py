@@ -171,11 +171,17 @@ async def process_rom_file(file_path: Path, job_id: int, full_scan: bool = False
 
         import re as _re
         _disc_re = _re.compile(r"[\s\(]*(disc|cd|track)\s*(\d+)[\)\s]*$", _re.IGNORECASE)
-        is_multi_disc = bool(_disc_re.search(file_path.stem)) or file_path.suffix.lower() in (".cue", ".m3u")
+        ext_lower = file_path.suffix.lower()
+        is_multi_disc = bool(_disc_re.search(file_path.stem)) or ext_lower in (".cue", ".m3u")
         disc_count = None
-        if file_path.suffix.lower() in (".cue", ".m3u"):
-            _siblings = collect_disc_skips(file_path.parent)
-            disc_count = len(_siblings) if _siblings else None
+        if ext_lower == ".m3u":
+            try:
+                lines = file_path.read_text(errors="replace").splitlines()
+                disc_count = sum(1 for l in lines if l.strip() and not l.strip().startswith("#"))
+            except OSError:
+                pass
+        elif ext_lower == ".cue":
+            disc_count = sum(1 for f in file_path.parent.iterdir() if f.suffix.lower() == ".cue")
 
         langs = parsed.get("languages")
         return Rom(
@@ -390,6 +396,8 @@ async def save_batch(roms: list[Rom], job_id: int) -> None:
                 existing.mtime = rom.mtime
                 existing.hash_sha1 = rom.hash_sha1
                 existing.hash_xxhash = rom.hash_xxhash
+                existing.is_multi_disc = rom.is_multi_disc
+                existing.disc_count = rom.disc_count
                 if not existing.scrape_status:
                     existing.scrape_status = "pending"
             else:
