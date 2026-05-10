@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select, update
 
 from app.database import get_db_context
-from app.models import Rom
-from app.schemas import ErrorResponse, RomListResponse, RomResponse, RomUpdate, StatsResponse
+from app.models import Platform, Rom
+from app.schemas import ErrorResponse, PlatformStat, RomListResponse, RomResponse, RomUpdate, StatsResponse
 from app.utils.images import COVERS_DIR, SCREENSHOTS_DIR
 
 router = APIRouter()
@@ -125,12 +125,32 @@ async def get_stats() -> StatsResponse:
         )
         roms_with_ss = ss_result.scalar() or 0
 
+        scraped_result = await session.execute(
+            select(func.count(Rom.id)).where(Rom.scrape_status == "done")
+        )
+        scraped_count = scraped_result.scalar() or 0
+        scrape_coverage = scraped_count / total_roms if total_roms > 0 else 0.0
+
+        top_result = await session.execute(
+            select(Rom.platform_slug, Platform.name, func.count(Rom.id).label("count"))
+            .join(Platform, Rom.platform_slug == Platform.slug)
+            .group_by(Rom.platform_slug, Platform.name)
+            .order_by(func.count(Rom.id).desc())
+            .limit(5)
+        )
+        top_platforms = [
+            PlatformStat(slug=row[0], name=row[1], count=row[2])
+            for row in top_result.all()
+        ]
+
         return StatsResponse(
             total_roms=total_roms,
             total_platforms=total_platforms,
             total_size_bytes=total_size,
             roms_with_igdb=roms_with_igdb,
             roms_with_screenscraper=roms_with_ss,
+            scrape_coverage=scrape_coverage,
+            top_platforms=top_platforms,
             last_scan=None,
         )
 

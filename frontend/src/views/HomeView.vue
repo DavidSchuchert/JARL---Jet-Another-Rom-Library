@@ -6,6 +6,7 @@ import { useRomsStore } from '@/stores/roms'
 import RomGrid from '@/components/RomGrid.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import FilterBar from '@/components/FilterBar.vue'
+import StatsWidget from '@/components/StatsWidget.vue'
 
 const romsStore = useRomsStore()
 const route = useRoute()
@@ -132,6 +133,9 @@ const handleDelete = async (id: number) => {
         </div>
       </div>
     </header>
+
+    <!-- Stats Widget -->
+    <StatsWidget class="mb-2" />
 
     <!-- Active Filters -->
     <div v-if="search || selectedPlatform" class="flex flex-wrap items-center gap-2 text-xs">

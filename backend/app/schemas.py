@@ -166,13 +166,24 @@ class ScanStartResponse(BaseModel):
     message: str
 
 
+class PlatformStat(BaseModel):
+    """Per-platform ROM count for statistics."""
+
+    name: str
+    slug: str
+    count: int
+
+
 class StatsResponse(BaseModel):
     """ROM library statistics."""
+
     total_roms: int
     total_platforms: int
     total_size_bytes: int
     roms_with_igdb: int
     roms_with_screenscraper: int
+    scrape_coverage: float = 0.0
+    top_platforms: list[PlatformStat] = []
     last_scan: Optional[str] = None
 
 
