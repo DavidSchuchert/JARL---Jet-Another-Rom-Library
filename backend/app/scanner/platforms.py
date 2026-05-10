@@ -12,6 +12,11 @@ class PlatformInfo:
     family: Optional[str]
     extensions: list[str]
     path_pattern: str
+    aliases: list[str] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.aliases is None:
+            self.aliases = []
 
 
 PLATFORMS: dict[str, PlatformInfo] = {
@@ -146,6 +151,48 @@ PLATFORMS.update({
 })
 
 
+# Common folder-name aliases for platforms that often use long/non-slug folder names.
+# Used as substring matches against the full lowercase path.
+_PLATFORM_ALIASES: dict[str, list[str]] = {
+    "snes":            ["super nintendo", "super famicom", "superfamicom"],
+    "nes":             ["famicom"],
+    "gameboy":         ["game boy"],
+    "gameboycolor":    ["game boy color"],
+    "gameboyadvance":  ["game boy advance"],
+    "n64":             ["nintendo 64"],
+    "gamecube":        ["nintendo gamecube"],
+    "wii":             ["nintendo wii"],
+    "wiiu":            ["wii u", "nintendo wii u"],
+    "switch":          ["nintendo switch"],
+    "nds":             ["nintendo ds"],
+    "3ds":             ["nintendo 3ds"],
+    "psx":             ["playstation 1", "ps one", "psone", "playstation one"],
+    "ps2":             ["playstation 2"],
+    "ps3":             ["playstation 3"],
+    "ps4":             ["playstation 4"],
+    "ps5":             ["playstation 5"],
+    "psp":             ["playstation portable"],
+    "vita":            ["playstation vita"],
+    "megadrive":       ["mega drive", "genesis", "sega genesis", "sega mega drive"],
+    "mastersystem":    ["master system", "sega master system"],
+    "gamegear":        ["game gear", "sega game gear"],
+    "segacd":          ["sega cd", "mega cd", "sega mega cd"],
+    "saturn":          ["sega saturn"],
+    "dreamcast":       ["sega dreamcast"],
+    "atari2600":       ["atari 2600"],
+    "atari5200":       ["atari 5200"],
+    "atari7800":       ["atari 7800"],
+    "atarilynx":       ["atari lynx"],
+    "atarijaguar":     ["atari jaguar"],
+    "atarist":         ["atari st"],
+    "xbox360":         ["xbox 360"],
+}
+
+for _slug, _aliases in _PLATFORM_ALIASES.items():
+    if _slug in PLATFORMS:
+        PLATFORMS[_slug].aliases = _aliases
+
+
 def get_platform_by_extension(extension: str) -> Optional[PlatformInfo]:
     """Get platform info by file extension."""
     extension = extension.lower().lstrip(".")
@@ -171,16 +218,25 @@ def get_platforms_by_family(family: str) -> list[PlatformInfo]:
 
 
 def guess_platform_from_path(path: str) -> Optional[PlatformInfo]:
-    """Guess platform from file path."""
+    """Guess platform from file path using folder-name matching only (no filename heuristics)."""
     path_lower = path.lower()
-    path_parts = [part for part in re.split(r"[^a-z0-9]+", path_lower) if part]
+    # Only examine directory components, not the filename itself, to avoid matching
+    # game titles that happen to contain platform names (e.g. "Kill Switch" → Switch).
+    dir_lower = path_lower.rsplit("/", 1)[0] if "/" in path_lower else ""
+    dir_parts = [part for part in re.split(r"[^a-z0-9]+", dir_lower) if part]
 
+    # 1. Exact slug/pattern match as a directory segment (longest slugs first so
+    #    "gameboyadvance" beats "gameboy", "snes" beats "nes", etc.)
     for platform in sorted(PLATFORMS.values(), key=lambda p: len(p.slug), reverse=True):
-        if platform.slug in path_parts or platform.path_pattern in path_parts:
+        if platform.slug in dir_parts or platform.path_pattern in dir_parts:
             return platform
 
+    # 2. Alias substring match against the directory path (handles long folder names
+    #    like "Nintendo - Super Nintendo Entertainment System").  Longer-slug platforms
+    #    are checked first so more-specific aliases win.
     for platform in sorted(PLATFORMS.values(), key=lambda p: len(p.slug), reverse=True):
-        pattern = rf"(?<![a-z0-9]){re.escape(platform.slug)}(?![a-z0-9])"
-        if re.search(pattern, path_lower):
-            return platform
+        for alias in platform.aliases:
+            if alias in dir_lower:
+                return platform
+
     return None

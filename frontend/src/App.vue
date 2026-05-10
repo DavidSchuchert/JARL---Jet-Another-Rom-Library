@@ -151,7 +151,17 @@ onMounted(() => {
       <div class="relative z-10 p-4 lg:p-8 max-w-7xl mx-auto" :class="auth.isAuthenticated ? 'mb-16 lg:mb-0' : ''">
         <RouterView v-slot="{ Component }">
           <transition name="fade-slide" mode="out-in">
-            <component :is="Component" />
+            <Suspense>
+              <template #default>
+                <component :is="Component" />
+              </template>
+              <template #fallback>
+                <div class="flex flex-col items-center justify-center py-32 gap-5">
+                  <div class="chip-loader"></div>
+                  <p style="font-family:'Orbitron',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.2em;color:var(--text-muted);text-transform:uppercase;">Loading</p>
+                </div>
+              </template>
+            </Suspense>
           </transition>
         </RouterView>
       </div>
