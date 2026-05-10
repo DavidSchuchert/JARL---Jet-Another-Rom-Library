@@ -13,6 +13,14 @@ const router = useRouter()
 const search = ref('')
 const selectedPlatform = ref('')
 
+const handleSortChange = (e: Event) => {
+  const [by, dir] = (e.target as HTMLSelectElement).value.split(':')
+  romsStore.setSort(by, dir as 'asc' | 'desc')
+  romsStore.setPage(1)
+  syncQuery()
+  fetchRoms()
+}
+
 const fetchRoms = () => {
   romsStore.fetchRoms({
     page: romsStore.pagination.page,
@@ -104,6 +112,22 @@ const handleDelete = async (id: number) => {
             <div class="w-full sm:w-52">
               <FilterBar v-model="selectedPlatform" />
             </div>
+            <div class="w-full sm:w-44">
+              <select
+                :value="romsStore.sort.by + ':' + romsStore.sort.dir"
+                @change="handleSortChange"
+                class="w-full h-full rounded px-3 py-2 text-xs"
+                style="background:rgba(0,0,0,0.5); border:1px solid rgba(255,184,0,0.15); color:var(--text-main); font-family:'Share Tech Mono',monospace; cursor:pointer;"
+              >
+                <option value="title:asc">Title A&#x2192;Z</option>
+                <option value="title:desc">Title Z&#x2192;A</option>
+                <option value="year:desc">Year &#x2193;</option>
+                <option value="year:asc">Year &#x2191;</option>
+                <option value="rating:desc">Rating &#x2193;</option>
+                <option value="size:desc">Size &#x2193;</option>
+                <option value="scrape_status:asc">Unscraped First</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -127,20 +151,14 @@ const handleDelete = async (id: number) => {
 
     <!-- Grid Section -->
     <section>
-      <!-- Loading -->
-      <div v-if="romsStore.loading" class="flex flex-col items-center justify-center py-24 gap-5">
-        <div class="chip-loader"></div>
-        <p style="font-family: 'Orbitron', sans-serif; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase;">Loading Archive</p>
-      </div>
-
       <!-- Grid -->
-      <div v-else-if="romsStore.roms.length > 0" class="space-y-8">
+      <div v-if="romsStore.roms.length > 0 || romsStore.loading || romsStore.error" class="space-y-8">
         <div class="library-stage">
-          <RomGrid :roms="romsStore.roms" @delete="handleDelete" />
+          <RomGrid :roms="romsStore.roms" :loading="romsStore.loading" :error="romsStore.error" :skeleton-count="50" @delete="handleDelete" @retry="fetchRoms()" />
         </div>
 
         <!-- Pagination -->
-        <div class="flex justify-center items-center gap-6 py-6">
+        <div v-if="!romsStore.loading && !romsStore.error" class="flex justify-center items-center gap-6 py-6">
           <button
             @click="handlePageChange(romsStore.pagination.page - 1)"
             :disabled="romsStore.pagination.page === 1"
@@ -172,7 +190,7 @@ const handleDelete = async (id: number) => {
       </div>
 
       <!-- Empty State -->
-      <div v-else class="rounded-lg p-16 text-center" style="background: rgba(11,9,22,0.7); border: 1px dashed rgba(255,184,0,0.1);">
+      <div v-else-if="!romsStore.loading && !romsStore.error" class="rounded-lg p-16 text-center" style="background: rgba(11,9,22,0.7); border: 1px dashed rgba(255,184,0,0.1);">
         <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6"
              style="background: rgba(255,184,0,0.05); border: 1px solid rgba(255,184,0,0.1);">
           <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: rgba(255,184,0,0.3)">
