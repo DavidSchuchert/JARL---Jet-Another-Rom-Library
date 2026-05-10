@@ -213,13 +213,16 @@ _ALIAS_LOOKUP: list[tuple[str, "PlatformInfo"]] = sorted(
 )
 
 
+# Reverse-lookup dict: extension → first platform that owns it (O(1) per query).
+_EXT_TO_PLATFORM: dict[str, "PlatformInfo"] = {}
+for _platform in PLATFORMS.values():
+    for _ext in _platform.extensions:
+        _EXT_TO_PLATFORM.setdefault(_ext, _platform)
+
+
 def get_platform_by_extension(extension: str) -> Optional[PlatformInfo]:
-    """Get platform info by file extension."""
-    extension = extension.lower().lstrip(".")
-    for platform in PLATFORMS.values():
-        if extension in platform.extensions:
-            return platform
-    return None
+    """Get platform info by file extension. O(1) reverse-dict lookup."""
+    return _EXT_TO_PLATFORM.get(extension.lower().lstrip("."))
 
 
 def get_platform_by_slug(slug: str) -> Optional[PlatformInfo]:
